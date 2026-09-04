@@ -1,0 +1,6 @@
+{
+  "name": "Quatromine Deal Dashboard",
+  "description": "A private deal dashboard for Quatromine partners and vetted investors with role-specific views and deal data.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
