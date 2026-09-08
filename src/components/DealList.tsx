@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Bookmark } from 'lucide-react';
 import { Deal, Role } from '../types';
 import { DealRow } from './DealRow';
+import { useTheme } from '../context/ThemeContext';
 
 interface DealListProps {
   deals: Deal[];
@@ -26,6 +27,7 @@ export const DealList: React.FC<DealListProps> = ({
   onOpenDossier,
   onBookCall,
 }) => {
+  const { isLight } = useTheme();
   // Store expanded deal ID in state (clicking one opens it; clicking again collapses it)
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -35,26 +37,38 @@ export const DealList: React.FC<DealListProps> = ({
 
   if (deals.length === 0) {
     return (
-      <div className="bg-[#151518] border border-[rgba(255,255,255,0.08)] rounded-2xl p-12 text-center shadow-lg shadow-black/30">
+      <div
+        className={`border rounded-2xl p-12 text-center transition-colors shadow-sm ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-800'
+            : 'bg-[#151518] border-[rgba(255,255,255,0.08)] shadow-lg shadow-black/30'
+        }`}
+      >
         {isTrackingOnly ? (
           <div className="max-w-md mx-auto space-y-3">
-            <div className="w-10 h-10 rounded-full bg-[rgba(201,162,77,0.1)] border border-[rgba(201,162,77,0.3)] flex items-center justify-center mx-auto text-[#C9A24D]">
+            <div
+              className={`w-10 h-10 rounded-full border flex items-center justify-center mx-auto ${
+                isLight
+                  ? 'bg-amber-100 border-amber-300 text-amber-900'
+                  : 'bg-[rgba(201,162,77,0.1)] border-[rgba(201,162,77,0.3)] text-[#C9A24D]'
+              }`}
+            >
               <Bookmark className="w-4 h-4" />
             </div>
-            <p className="font-serif text-lg text-[#EDEDE9]">
+            <p className={`font-serif text-lg ${isLight ? 'text-slate-900' : 'text-[#EDEDE9]'}`}>
               No startups currently tracked
             </p>
-            <p className="text-xs text-[#94949B] leading-relaxed">
+            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
               You haven't added any opportunities to your tracked watchlist yet.
               Click the "Track" button on any vetted deal to monitor funding milestones and round updates.
             </p>
           </div>
         ) : (
           <div className="space-y-1">
-            <p className="font-serif text-lg text-[#EDEDE9]">
+            <p className={`font-serif text-lg ${isLight ? 'text-slate-900' : 'text-[#EDEDE9]'}`}>
               No deals match your criteria
             </p>
-            <p className="text-xs text-[#94949B]">
+            <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
               Try broadening your search query or clearing active filter constraints.
             </p>
           </div>

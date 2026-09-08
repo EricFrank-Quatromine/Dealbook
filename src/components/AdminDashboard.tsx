@@ -542,6 +542,7 @@ const DealEditorModal: React.FC<DealEditorModalProps> = ({
   const [jurisdiction, setJurisdiction] = useState(deal?.jurisdiction || 'Switzerland');
   const [sector, setSector] = useState(deal?.sector || 'Digital Infrastructure & AI');
   const [opportunityType, setOpportunityType] = useState(deal?.opportunityType || 'Early Stage / VC');
+  const [investmentType, setInvestmentType] = useState(deal?.investmentType || 'Growth Equity');
   const [stage, setStage] = useState(deal?.stage || 'Series A');
   const [ticket, setTicket] = useState(deal?.ticket || 'CHF 5.0M');
   const [priority, setPriority] = useState(deal?.priority || 'Tier 1 — High Priority');
@@ -635,6 +636,7 @@ const DealEditorModal: React.FC<DealEditorModalProps> = ({
       jurisdiction: jurisdiction as any,
       sector: sector as any,
       opportunityType: opportunityType as any,
+      investmentType: (investmentType || 'Growth Equity') as any,
       stage: stage.trim(),
       ticket: ticket.trim(),
       priority: priority as any,
@@ -906,6 +908,24 @@ const DealEditorModal: React.FC<DealEditorModalProps> = ({
                   <option value="Real Assets / Infrastructure">Real Assets / Infrastructure</option>
                   <option value="Emerging Managers">Emerging Managers</option>
                   <option value="Large / Institutional">Large / Institutional</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-[#94949B] uppercase tracking-wider mb-1">
+                  Investment Type / Structure
+                </label>
+                <select
+                  value={investmentType}
+                  onChange={(e) => setInvestmentType(e.target.value as any)}
+                  className="w-full bg-[#111114] border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-2 text-xs text-[#EDEDE9] outline-none focus:border-[#C9A24D]/60"
+                >
+                  <option value="Acquisition">Acquisition (M&amp;A / Buyout)</option>
+                  <option value="Venture Capital">Venture Capital (Early Stage)</option>
+                  <option value="Growth Equity">Growth Equity (Scaling)</option>
+                  <option value="Real Asset / Project">Real Asset / Project Infrastructure</option>
+                  <option value="Structured / Mezzanine Debt">Structured / Mezzanine Debt</option>
+                  <option value="Fund Commitment">Fund Commitment (Emerging Managers)</option>
                 </select>
               </div>
             </div>

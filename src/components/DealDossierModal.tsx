@@ -103,7 +103,7 @@ export const DealDossierModal: React.FC<DealDossierModalProps> = ({
               {deal.name}
             </h1>
 
-            <p className="text-xs text-[#94949B] mt-1 max-w-2xl line-clamp-2 font-light">
+            <p className="text-xs text-[#94949B] mt-1 max-w-2xl font-light leading-relaxed">
               {deal.teaser}
             </p>
           </div>

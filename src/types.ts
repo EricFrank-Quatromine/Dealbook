@@ -1,5 +1,7 @@
 export type Role = 'broker' | 'investor' | 'admin';
 
+export type Theme = 'dark' | 'light';
+
 export type Jurisdiction = 'Switzerland' | 'Luxembourg';
 
 export type Sector =
@@ -13,6 +15,14 @@ export type OpportunityType =
   | 'Large / Institutional'
   | 'Real Assets / Infrastructure'
   | 'Emerging Managers';
+
+export type InvestmentType =
+  | 'Acquisition'
+  | 'Growth Equity'
+  | 'Venture Capital'
+  | 'Real Asset / Project'
+  | 'Structured / Mezzanine Debt'
+  | 'Fund Commitment';
 
 export interface DealTeamMember {
   name: string;
@@ -60,6 +70,7 @@ export interface Deal {
   jurisdiction: Jurisdiction;
   sector: Sector;
   opportunityType: OpportunityType;
+  investmentType?: InvestmentType;
   stage: string;
   ticket: string;
   priority: string; // Internal only (visible to Partner/Admin)
@@ -94,6 +105,11 @@ export interface FilterState {
   jurisdiction: string;
   sector: string;
   opportunityType: string;
+  investmentType: string;
+  ticketRange: string;
+  stage: string;
+  sortBy: string;
+  featuredOnly?: boolean;
   trackedOnly?: boolean;
 }
 

@@ -19,7 +19,24 @@ export const dealService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Ensure investmentType is present and sync any new seed deals
+          const enriched = parsed.map((deal: Deal) => {
+            const seed = INITIAL_DEALS.find((d) => d.id === deal.id);
+            return {
+              ...deal,
+              investmentType: deal.investmentType || seed?.investmentType || 'Growth Equity',
+            };
+          });
+
+          // Check if any initial deals are completely missing from storage
+          const existingIds = new Set(enriched.map((d: Deal) => d.id));
+          const missingSeeds = INITIAL_DEALS.filter((d) => !existingIds.has(d.id));
+          const complete = [...enriched, ...missingSeeds];
+
+          try {
+            localStorage.setItem(DEALS_STORAGE_KEY, JSON.stringify(complete));
+          } catch {}
+          return complete;
         }
       }
     } catch (e) {

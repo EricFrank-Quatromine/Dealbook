@@ -9,6 +9,7 @@ import { FluidBackground } from './FluidBackground';
 import { DealDossierModal } from './DealDossierModal';
 import { BookCallModal } from './BookCallModal';
 import { AdminDashboard } from './AdminDashboard';
+import { useTheme } from '../context/ThemeContext';
 
 interface DealDashboardProps {
   user: AuthUser;
@@ -16,6 +17,7 @@ interface DealDashboardProps {
 }
 
 export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut }) => {
+  const { isLight } = useTheme();
   const [activeRole, setActiveRole] = useState<Role>(user.role);
   const [isAdminView, setIsAdminView] = useState<boolean>(user.role === 'admin');
 
@@ -35,6 +37,11 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
     jurisdiction: 'all',
     sector: 'all',
     opportunityType: 'all',
+    investmentType: 'all',
+    ticketRange: 'all',
+    stage: 'all',
+    sortBy: 'default',
+    featuredOnly: false,
     trackedOnly: false,
   });
 
@@ -65,7 +72,11 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
   };
 
   const handleToggleTrackOnly = () => {
-    setFilters((prev) => ({ ...prev, trackedOnly: !prev.trackedOnly }));
+    setFilters((prev) => ({
+      ...prev,
+      trackedOnly: !prev.trackedOnly,
+      featuredOnly: false,
+    }));
   };
 
   const handleOpenDossier = (deal: Deal) => {
@@ -77,20 +88,35 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
     setIsBookCallOpen(true);
   };
 
-  // Combined AND-logic filtering
+  // Combined AND-logic filtering and sorting
   const filteredDeals = useMemo(() => {
-    return deals.filter((deal) => {
+    let result = deals.filter((deal) => {
       // Tracked-only filter
       if (filters.trackedOnly && !trackedDealIds.includes(deal.id)) {
         return false;
       }
 
-      // Free-text search matching deal name OR sector
+      // Featured-only filter
+      if (filters.featuredOnly && !deal.featuredForInvestor) {
+        return false;
+      }
+
+      // Investment Type filter (with Acquisition support)
+      if (filters.investmentType && filters.investmentType !== 'all') {
+        if (deal.investmentType !== filters.investmentType) {
+          return false;
+        }
+      }
+
+      // Free-text search matching deal name, sector, teaser, jurisdiction, or investment type
       if (filters.search.trim()) {
         const query = filters.search.toLowerCase().trim();
         const matchName = deal.name.toLowerCase().includes(query);
         const matchSector = deal.sector.toLowerCase().includes(query);
-        if (!matchName && !matchSector) {
+        const matchTeaser = deal.teaser ? deal.teaser.toLowerCase().includes(query) : false;
+        const matchJurisdiction = deal.jurisdiction.toLowerCase().includes(query);
+        const matchType = deal.investmentType ? deal.investmentType.toLowerCase().includes(query) : false;
+        if (!matchName && !matchSector && !matchTeaser && !matchJurisdiction && !matchType) {
           return false;
         }
       }
@@ -110,8 +136,43 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
         return false;
       }
 
+      // Ticket Range filter
+      if (filters.ticketRange && filters.ticketRange !== 'all') {
+        const numericMatch = deal.ticket.match(/(\d+(\.\d+)?)/);
+        const numericTicket = numericMatch ? parseFloat(numericMatch[1]) : 0;
+
+        if (filters.ticketRange === 'under-10m' && numericTicket >= 10) {
+          return false;
+        }
+        if (filters.ticketRange === '10m-25m' && (numericTicket < 10 || numericTicket > 25)) {
+          return false;
+        }
+        if (filters.ticketRange === 'over-25m' && numericTicket <= 25) {
+          return false;
+        }
+      }
+
       return true;
     });
+
+    // Dynamic sorting
+    if (filters.sortBy && filters.sortBy !== 'default') {
+      result = [...result].sort((a, b) => {
+        if (filters.sortBy === 'name-asc') {
+          return a.name.localeCompare(b.name);
+        }
+        if (filters.sortBy === 'ticket-desc' || filters.sortBy === 'ticket-asc') {
+          const matchA = a.ticket.match(/(\d+(\.\d+)?)/);
+          const matchB = b.ticket.match(/(\d+(\.\d+)?)/);
+          const numA = matchA ? parseFloat(matchA[1]) : 0;
+          const numB = matchB ? parseFloat(matchB[1]) : 0;
+          return filters.sortBy === 'ticket-desc' ? numB - numA : numA - numB;
+        }
+        return 0;
+      });
+    }
+
+    return result;
   }, [deals, filters, trackedDealIds]);
 
   const featuredCount = useMemo(() => {
@@ -139,7 +200,11 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0B0B0C] text-[#EDEDE9] flex flex-col overflow-x-hidden">
+    <div
+      className={`relative min-h-screen flex flex-col overflow-x-hidden transition-colors duration-200 ${
+        isLight ? 'bg-[#FFFFFF] text-slate-900' : 'bg-[#0B0B0C] text-[#EDEDE9]'
+      }`}
+    >
       {/* Minimalist fluidic background reacting to scroll and mouse hover */}
       <FluidBackground variant={isAdminView ? 'login' : activeRole === 'investor' ? 'investor' : 'broker'} />
 
@@ -183,10 +248,11 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
             role={activeRole}
             trackedCount={trackedCount}
             totalDealsCount={deals.length}
+            featuredCount={featuredCount}
           />
 
           {loading ? (
-            <div className="p-16 text-center text-xs text-[#5F5F65]">
+            <div className={`p-16 text-center text-xs ${isLight ? 'text-slate-500' : 'text-[#5F5F65]'}`}>
               <div className="inline-block w-5 h-5 border-2 border-[rgba(201,162,77,0.3)] border-t-[#C9A24D] rounded-full animate-spin mb-3" />
               <p>Accessing vetted deal portfolio...</p>
             </div>
@@ -235,14 +301,20 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
       />
 
       {/* Subtle footer */}
-      <footer className="relative z-10 border-t border-[rgba(255,255,255,0.06)] bg-[#0B0B0C] py-6 text-center text-[11px] text-[#5F5F65]">
+      <footer
+        className={`relative z-10 border-t py-6 text-center text-[11px] transition-colors duration-200 ${
+          isLight
+            ? 'border-slate-200 bg-[#FFFFFF] text-slate-500'
+            : 'border-[rgba(255,255,255,0.06)] bg-[#0B0B0C] text-[#5F5F65]'
+        }`}
+      >
         <div className="max-w-[1080px] mx-auto px-6 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span>Quatromine Deal Dashboard &bull; Confidential Institutional Syndication</span>
           <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={() => handleOpenBookCall()}
-              className="text-[#C9A24D] hover:underline cursor-pointer"
+              className={`${isLight ? 'text-amber-800' : 'text-[#C9A24D]'} hover:underline cursor-pointer`}
             >
               Book General Briefing Call
             </button>
@@ -250,7 +322,7 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
             <button
               type="button"
               onClick={() => setIsAdminView((prev) => !prev)}
-              className="text-[#94A3AE] hover:text-[#EDEDE9] cursor-pointer"
+              className={`${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-[#94A3AE] hover:text-[#EDEDE9]'} cursor-pointer`}
             >
               {isAdminView ? 'Switch to Standard View' : 'Deal Operations (Admin Console)'}
             </button>
@@ -260,4 +332,3 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
     </div>
   );
 };
-

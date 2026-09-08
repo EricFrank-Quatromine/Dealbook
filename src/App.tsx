@@ -8,8 +8,9 @@ import { AuthUser, Role } from './types';
 import { authService } from './services/authService';
 import { LoginScreen } from './components/LoginScreen';
 import { DealDashboard } from './components/DealDashboard';
+import { ThemeProvider } from './context/ThemeContext';
 
-export default function App() {
+function AppContent() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     return authService.getCurrentUser();
   });
@@ -29,4 +30,12 @@ export default function App() {
   }
 
   return <DealDashboard user={currentUser} onSignOut={handleSignOut} />;
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
 }

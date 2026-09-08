@@ -18,11 +18,29 @@
     --gold-line: rgba(201, 162, 77, 0.4);
   }
 
+  :root.light-theme {
+    --black: #FFFFFF;
+    --charcoal: #F8FAFC;
+    --panel: #FFFFFF;
+    --panel-hover: #F1F5F9;
+    --hairline: rgba(0, 0, 0, 0.08);
+    --hairline-strong: rgba(0, 0, 0, 0.15);
+    --text: #0F172A;
+    --text-dim: #475569;
+    --text-faint: #64748B;
+    --steel: #475569;
+    --steel-soft: rgba(71, 85, 105, 0.1);
+    --gold: #9E7922;
+    --gold-soft: rgba(180, 140, 50, 0.12);
+    --gold-line: rgba(180, 140, 50, 0.4);
+  }
+
   body {
     background-color: var(--black);
     color: var(--text);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     letter-spacing: -0.01em;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 

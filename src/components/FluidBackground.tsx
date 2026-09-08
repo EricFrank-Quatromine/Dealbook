@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 interface FluidBackgroundProps {
   variant: 'login' | 'investor' | 'broker';
@@ -22,6 +23,7 @@ interface Node {
 
 export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { isLight } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,8 +64,10 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
     const isInvestor = variant === 'investor';
     const isLogin = variant === 'login';
 
-    const goldColor = '#C9A24D';
-    const steelColor = '#94A3AE';
+    const goldColor = isLight ? '#9E7922' : '#C9A24D';
+    const steelColor = isLight ? '#64748B' : '#94A3AE';
+    const gridLineColor = isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.035)';
+    const goldAccent = isLight ? 'rgba(158, 121, 34,' : 'rgba(201, 162, 77,';
 
     // Generate sharp constellation nodes
     const nodeCount = isLogin ? 65 : isInvestor ? 75 : 55;
@@ -159,8 +163,8 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
           ctx.beginPath();
           ctx.strokeStyle =
             distY < 80 && isInvestor
-              ? `rgba(201, 162, 77, ${0.12 + (1 - distY / 80) * 0.15})`
-              : 'rgba(255, 255, 255, 0.035)';
+              ? `${goldAccent} ${0.12 + (1 - distY / 80) * 0.15})`
+              : gridLineColor;
 
           // Draw sharp line across screen
           ctx.moveTo(0, currentY);
@@ -176,9 +180,9 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
             const isNear = dist < 120;
             const tickH = isNear ? 5 : 2.5;
 
-            // Vertical measurement ticks (opacity reduced by 50%)
+            // Vertical measurement ticks
             ctx.beginPath();
-            ctx.strokeStyle = isNear && isInvestor ? 'rgba(201, 162, 77, 0.225)' : 'rgba(255, 255, 255, 0.035)';
+            ctx.strokeStyle = isNear && isInvestor ? `${goldAccent} 0.35)` : gridLineColor;
             ctx.moveTo(x, currentY - tickH);
             ctx.lineTo(x, currentY + tickH);
             ctx.stroke();
@@ -186,7 +190,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
             // Near cursor: draw sharp micro-crosshair
             if (isNear && dist < 70 && isInvestor) {
               ctx.beginPath();
-              ctx.strokeStyle = 'rgba(201, 162, 77, 0.7)';
+              ctx.strokeStyle = `${goldAccent} 0.8)`;
               ctx.moveTo(x - 4, currentY);
               ctx.lineTo(x + 4, currentY);
               ctx.stroke();
@@ -198,8 +202,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
         const step = 80;
         ctx.lineWidth = 1;
 
-        // Vertical lines with 50% reduced opacity (from 0.025 to 0.0125)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.0125)';
+        ctx.strokeStyle = isLight ? 'rgba(15, 23, 42, 0.03)' : 'rgba(255, 255, 255, 0.0125)';
         for (let x = 0; x < width; x += step) {
           ctx.beginPath();
           ctx.moveTo(x, 0);
@@ -208,7 +211,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
         }
 
         // Horizontal lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+        ctx.strokeStyle = isLight ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.025)';
         for (let y = 0; y < height; y += step) {
           ctx.beginPath();
           ctx.moveTo(0, y);
@@ -224,7 +227,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
             const dist = Math.hypot(dx, dy);
             if (dist < 140) {
               const alpha = (1 - dist / 140) * 0.4;
-              ctx.fillStyle = `rgba(201, 162, 77, ${alpha})`;
+              ctx.fillStyle = `${goldAccent} ${alpha})`;
               ctx.fillRect(x - 1, y - 1, 3, 3);
             }
           }
@@ -429,7 +432,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({ variant }) => 
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [variant]);
+  }, [variant, isLight]);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
