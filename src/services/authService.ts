@@ -72,6 +72,49 @@ export const authService = {
     return user;
   },
 
+  async registerPartner(data: {
+    name: string;
+    firm: string;
+    email: string;
+    focus: string;
+    password?: string;
+  }): Promise<AuthUser> {
+    const cleanEmail = data.email.trim().toLowerCase();
+    const user: AuthUser = {
+      email: cleanEmail,
+      role: 'broker',
+    };
+
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+
+      // Also persist partner profile details
+      const partnersJson = localStorage.getItem('quatromine_registered_partners');
+      const partners = partnersJson ? JSON.parse(partnersJson) : [];
+      partners.push({
+        name: data.name,
+        firm: data.firm,
+        email: cleanEmail,
+        focus: data.focus,
+        registeredAt: new Date().toISOString(),
+      });
+      localStorage.setItem('quatromine_registered_partners', JSON.stringify(partners));
+    } catch (e) {
+      console.warn('Partner storage write failed', e);
+    }
+    return user;
+  },
+
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    // Simulate real reset token generation and delivery
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return {
+      success: true,
+      message: `Password reset instructions have been dispatched to ${email.trim()}.`,
+    };
+  },
+
   async logout(): Promise<void> {
     try {
       sessionStorage.removeItem(STORAGE_KEY);

@@ -80,6 +80,7 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
   };
 
   const handleOpenDossier = (deal: Deal) => {
+    if (activeRole === 'broker') return;
     setSelectedDossierDeal(deal);
   };
 
@@ -265,7 +266,7 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
               trackedDealIds={trackedDealIds}
               onToggleTrack={handleToggleTrack}
               isTrackingOnly={Boolean(filters.trackedOnly)}
-              onOpenDossier={handleOpenDossier}
+              onOpenDossier={activeRole === 'broker' ? undefined : handleOpenDossier}
               onBookCall={handleOpenBookCall}
             />
           )}
@@ -273,20 +274,22 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({ user, onSignOut })
       )}
 
       {/* POPUP: Deal Dossier Modal (Aspects: Team, Financials, Ask, Sector & Focus, Stage) */}
-      <DealDossierModal
-        deal={selectedDossierDeal}
-        role={activeRole}
-        isOpen={Boolean(selectedDossierDeal)}
-        onClose={() => setSelectedDossierDeal(null)}
-        onBookCall={(deal) => {
-          setSelectedDossierDeal(null);
-          handleOpenBookCall(deal);
-        }}
-        onRequestIntro={handleRequestIntro}
-        introRequested={selectedDossierDeal ? Boolean(introRequestedMap[selectedDossierDeal.id]) : false}
-        isTracked={selectedDossierDeal ? trackedDealIds.includes(selectedDossierDeal.id) : false}
-        onToggleTrack={handleToggleTrack}
-      />
+      {activeRole !== 'broker' && (
+        <DealDossierModal
+          deal={selectedDossierDeal}
+          role={activeRole}
+          isOpen={Boolean(selectedDossierDeal)}
+          onClose={() => setSelectedDossierDeal(null)}
+          onBookCall={(deal) => {
+            setSelectedDossierDeal(null);
+            handleOpenBookCall(deal);
+          }}
+          onRequestIntro={handleRequestIntro}
+          introRequested={selectedDossierDeal ? Boolean(introRequestedMap[selectedDossierDeal.id]) : false}
+          isTracked={selectedDossierDeal ? trackedDealIds.includes(selectedDossierDeal.id) : false}
+          onToggleTrack={handleToggleTrack}
+        />
+      )}
 
       {/* POPUP: Book a Call Modal */}
       <BookCallModal

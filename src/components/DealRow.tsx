@@ -71,6 +71,7 @@ export const DealRow: React.FC<DealRowProps> = ({
 
   const handleOpenDossierClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (role === 'broker') return;
     onOpenDossier?.(deal);
   };
 
@@ -124,9 +125,11 @@ export const DealRow: React.FC<DealRowProps> = ({
         >
           {/* Monogram */}
           <div
-            onClick={handleOpenDossierClick}
-            title="Click to view full Deal Dossier popup"
-            className={`w-[44px] h-[44px] rounded-full flex items-center justify-center font-serif text-[15px] font-medium shrink-0 transition-all hover:scale-105 ${
+            onClick={role !== 'broker' ? handleOpenDossierClick : undefined}
+            title={role !== 'broker' ? "Click to view full Deal Dossier popup" : undefined}
+            className={`w-[44px] h-[44px] rounded-full flex items-center justify-center font-serif text-[15px] font-medium shrink-0 transition-all ${
+              role !== 'broker' ? 'hover:scale-105 cursor-pointer' : ''
+            } ${
               isLight
                 ? isFeatured
                   ? 'border border-[rgba(180,140,50,0.4)] bg-amber-50 text-[#8C6515]'
@@ -143,13 +146,17 @@ export const DealRow: React.FC<DealRowProps> = ({
           <div className="min-w-0 pr-2">
             <div className="flex items-center gap-2">
               <h3
-                onClick={handleOpenDossierClick}
-                className={`font-serif text-[17px] font-normal leading-snug transition-colors cursor-pointer ${
-                  isLight
-                    ? 'text-[#0F172A] hover:text-[#8C6515]'
-                    : 'text-[#EDEDE9] hover:text-[#C9A24D]'
+                onClick={role !== 'broker' ? handleOpenDossierClick : undefined}
+                className={`font-serif text-[17px] font-normal leading-snug transition-colors ${
+                  role !== 'broker'
+                    ? isLight
+                      ? 'text-[#0F172A] hover:text-[#8C6515] cursor-pointer'
+                      : 'text-[#EDEDE9] hover:text-[#C9A24D] cursor-pointer'
+                    : isLight
+                    ? 'text-[#0F172A]'
+                    : 'text-[#EDEDE9]'
                 }`}
-                title="View Full Deal Dossier"
+                title={role !== 'broker' ? "View Full Deal Dossier" : undefined}
               >
                 {deal.name}
               </h3>
@@ -286,20 +293,22 @@ export const DealRow: React.FC<DealRowProps> = ({
               <span className="xl:hidden">Call</span>
             </button>
 
-            {/* View Dossier Button */}
-            <button
-              type="button"
-              id={`btn-view-dossier-row-${deal.id}`}
-              onClick={handleOpenDossierClick}
-              className={`p-1.5 rounded-xl transition-colors cursor-pointer shrink-0 ${
-                isLight
-                  ? 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200'
-                  : 'text-[#94949B] hover:text-[#EDEDE9] bg-[#101013] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.2)]'
-              }`}
-              title="Open deal details popup (Team, Financials, Ask, Sector & Stage)"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
+            {/* View Dossier Button - only shown for investor/admin, removed in partner dashboard */}
+            {role !== 'broker' && (
+              <button
+                type="button"
+                id={`btn-view-dossier-row-${deal.id}`}
+                onClick={handleOpenDossierClick}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                  isLight
+                    ? 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200'
+                    : 'text-[#94949B] hover:text-[#EDEDE9] bg-[#101013] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.2)]'
+                }`}
+                title="Open deal details popup (Team, Financials, Ask, Sector & Stage)"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
 
             {/* Investor Track Button */}
             {isInvestor && (
@@ -349,8 +358,10 @@ export const DealRow: React.FC<DealRowProps> = ({
           <div className="grid grid-cols-[36px_1fr_20px] gap-3 items-start">
             {/* Monogram */}
             <div
-              onClick={handleOpenDossierClick}
+              onClick={role !== 'broker' ? handleOpenDossierClick : undefined}
               className={`w-[36px] h-[36px] rounded-full flex items-center justify-center font-serif text-[13px] font-medium shrink-0 mt-0.5 ${
+                role !== 'broker' ? 'cursor-pointer' : ''
+              } ${
                 isLight
                   ? isFeatured
                     ? 'border border-[rgba(180,140,50,0.4)] bg-amber-50 text-[#8C6515]'
@@ -367,11 +378,15 @@ export const DealRow: React.FC<DealRowProps> = ({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <h3
-                  onClick={handleOpenDossierClick}
-                  className={`font-serif text-[16px] font-normal leading-snug cursor-pointer ${
-                    isLight
-                      ? 'text-[#0F172A] hover:text-[#8C6515]'
-                      : 'text-[#EDEDE9] hover:text-[#C9A24D]'
+                  onClick={role !== 'broker' ? handleOpenDossierClick : undefined}
+                  className={`font-serif text-[16px] font-normal leading-snug ${
+                    role !== 'broker'
+                      ? isLight
+                        ? 'text-[#0F172A] hover:text-[#8C6515] cursor-pointer'
+                        : 'text-[#EDEDE9] hover:text-[#C9A24D] cursor-pointer'
+                      : isLight
+                      ? 'text-[#0F172A]'
+                      : 'text-[#EDEDE9]'
                   }`}
                 >
                   {deal.name}
@@ -463,18 +478,20 @@ export const DealRow: React.FC<DealRowProps> = ({
                 <span>Book Call</span>
               </button>
 
-              {/* Mobile Dossier Button */}
-              <button
-                type="button"
-                onClick={handleOpenDossierClick}
-                className={`px-2 py-1 text-[11px] rounded-xl cursor-pointer whitespace-nowrap ${
-                  isLight
-                    ? 'text-slate-800 bg-slate-100 border border-slate-200'
-                    : 'text-[#EDEDE9] bg-[#1A1A1E] border border-[rgba(255,255,255,0.1)]'
-                }`}
-              >
-                Aspects
-              </button>
+              {/* Mobile Dossier Button - only shown for investor/admin, removed in partner dashboard */}
+              {role !== 'broker' && (
+                <button
+                  type="button"
+                  onClick={handleOpenDossierClick}
+                  className={`px-2 py-1 text-[11px] rounded-xl cursor-pointer whitespace-nowrap ${
+                    isLight
+                      ? 'text-slate-800 bg-slate-100 border border-slate-200'
+                      : 'text-[#EDEDE9] bg-[#1A1A1E] border border-[rgba(255,255,255,0.1)]'
+                  }`}
+                >
+                  Aspects
+                </button>
+              )}
 
               {/* Mobile Track Button */}
               {isInvestor && (
@@ -541,16 +558,18 @@ export const DealRow: React.FC<DealRowProps> = ({
                       <span className="w-1.5 h-1.5 rounded-full bg-[#C9A24D]" />
                       Executive Summary
                     </h4>
-                    <button
-                      type="button"
-                      onClick={handleOpenDossierClick}
-                      className={`inline-flex items-center gap-1 text-[11px] hover:underline cursor-pointer ${
-                        isLight ? 'text-[#8C6515]' : 'text-[#C9A24D]'
-                      }`}
-                    >
-                      <span>Full Dossier Popup (Team &amp; Financials)</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+                    {role !== 'broker' && (
+                      <button
+                        type="button"
+                        onClick={handleOpenDossierClick}
+                        className={`inline-flex items-center gap-1 text-[11px] hover:underline cursor-pointer ${
+                          isLight ? 'text-[#8C6515]' : 'text-[#C9A24D]'
+                        }`}
+                      >
+                        <span>Full Dossier Popup (Team &amp; Financials)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                   <p
                     className={`text-[14px] leading-relaxed font-light ${
@@ -664,58 +683,89 @@ export const DealRow: React.FC<DealRowProps> = ({
                 </div>
 
                 {/* Aspect Highlights Preview Card */}
-                <div
-                  className={`p-4 sm:p-5 border rounded-xl flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3.5 sm:gap-4 ${
-                    isLight
-                      ? 'bg-[#FFFFFF] border-slate-200 shadow-xs'
-                      : 'bg-[#151518] border-[rgba(255,255,255,0.07)]'
-                  }`}
-                >
-                  <div className="space-y-1 min-w-0">
-                    <span
-                      className={`text-[10px] uppercase tracking-wider font-semibold block ${
-                        isLight ? 'text-[#8C6515]' : 'text-[#C9A24D]'
-                      }`}
-                    >
-                      In-Depth Deal Aspects Available
-                    </span>
-                    <p
-                      className={`text-xs font-light leading-relaxed ${
-                        isLight ? 'text-slate-600' : 'text-[#EDEDE9]'
-                      }`}
-                    >
-                      View full breakdown of Founders &amp; Team, Financial Models, Syndicate Ask, and Milestones.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full xl:w-auto">
-                    <button
-                      type="button"
-                      onClick={handleOpenDossierClick}
-                      className={`flex-1 xl:flex-initial justify-center px-4 py-2.5 text-xs font-medium rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap text-center ${
-                        isLight
-                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200'
-                          : 'bg-[#222227] hover:bg-[#2b2b33] text-[#EDEDE9] border border-[rgba(255,255,255,0.1)]'
-                      }`}
-                    >
-                      <Users
-                        className={`w-3.5 h-3.5 shrink-0 ${
+                {role !== 'broker' ? (
+                  <div
+                    className={`p-4 sm:p-5 border rounded-xl flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3.5 sm:gap-4 ${
+                      isLight
+                        ? 'bg-[#FFFFFF] border-slate-200 shadow-xs'
+                        : 'bg-[#151518] border-[rgba(255,255,255,0.07)]'
+                    }`}
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <span
+                        className={`text-[10px] uppercase tracking-wider font-semibold block ${
                           isLight ? 'text-[#8C6515]' : 'text-[#C9A24D]'
                         }`}
-                      />
-                      <span>View Aspects Popup</span>
-                    </button>
+                      >
+                        In-Depth Deal Aspects Available
+                      </span>
+                      <p
+                        className={`text-xs font-light leading-relaxed ${
+                          isLight ? 'text-slate-600' : 'text-[#EDEDE9]'
+                        }`}
+                      >
+                        View full breakdown of Founders &amp; Team, Financial Models, Syndicate Ask, and Milestones.
+                      </p>
+                    </div>
 
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full xl:w-auto">
+                      <button
+                        type="button"
+                        onClick={handleOpenDossierClick}
+                        className={`flex-1 xl:flex-initial justify-center px-4 py-2.5 text-xs font-medium rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap text-center ${
+                          isLight
+                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200'
+                            : 'bg-[#222227] hover:bg-[#2b2b33] text-[#EDEDE9] border border-[rgba(255,255,255,0.1)]'
+                        }`}
+                      >
+                        <Users
+                          className={`w-3.5 h-3.5 shrink-0 ${
+                            isLight ? 'text-[#8C6515]' : 'text-[#C9A24D]'
+                          }`}
+                        />
+                        <span>View Aspects Popup</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleBookCallClick}
+                        className="flex-1 xl:flex-initial justify-center px-4 py-2.5 text-xs font-medium bg-[#C9A24D] text-[#0B0B0C] rounded-xl hover:bg-[#d6b05e] transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-sm whitespace-nowrap text-center"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5 shrink-0" />
+                        <span>Book a Call</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`p-4 border rounded-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                      isLight
+                        ? 'bg-[#FFFFFF] border-slate-200 shadow-xs'
+                        : 'bg-[#151518] border-[rgba(255,255,255,0.07)]'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <span
+                        className={`text-[10px] uppercase tracking-wider font-semibold block ${
+                          isLight ? 'text-slate-700' : 'text-[#94949B]'
+                        }`}
+                      >
+                        Deal Coordination &amp; Origination Desk
+                      </span>
+                      <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
+                        Connect with the Quatromine team regarding diligence notes and deal syndicate updates.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={handleBookCallClick}
-                      className="flex-1 xl:flex-initial justify-center px-4 py-2.5 text-xs font-medium bg-[#C9A24D] text-[#0B0B0C] rounded-xl hover:bg-[#d6b05e] transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-sm whitespace-nowrap text-center"
+                      className="w-full sm:w-auto px-4 py-2 text-xs font-medium bg-[#C9A24D] text-[#0B0B0C] rounded-xl hover:bg-[#d6b05e] transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap"
                     >
                       <PhoneCall className="w-3.5 h-3.5 shrink-0" />
                       <span>Book a Call</span>
                     </button>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Right column: related documents + direct action buttons */}
