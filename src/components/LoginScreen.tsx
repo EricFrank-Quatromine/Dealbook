@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft,
   Lock,
   Mail,
   Sun,
@@ -8,195 +7,128 @@ import {
   ShieldCheck,
   User,
   Building,
-  Briefcase,
   KeyRound,
   CheckCircle2,
   AlertCircle,
   FileText,
+  ArrowRight,
+  Shield,
+  Briefcase,
 } from 'lucide-react';
-import { Role } from '../types';
+import { DealbookUser, Role } from '../types';
 import { FluidBackground } from './FluidBackground';
 import { useTheme } from '../context/ThemeContext';
-import { authService } from '../services/authService';
+import { api, DealbookApiError } from '../services/dealbookApi';
 
 interface LoginScreenProps {
-  onLogin: (role: Role, email: string) => void;
+  onSuccess: (user: DealbookUser, mustChangePassword: boolean) => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   const { isLight, toggleTheme } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
-  // Partner specific modes: 'login' | 'signup' | 'forgot-password'
-  const [partnerMode, setPartnerMode] = useState<'login' | 'signup' | 'forgot-password'>('login');
+  // Mode: 'login' | 'register' | 'help'
+  const [mode, setMode] = useState<'login' | 'register' | 'help'>('login');
 
-  // Standard Login credentials
+  // Sign in credentials
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Partner Sign-Up Form fields
-  const [signupName, setSignupName] = useState('');
-  const [signupFirm, setSignupFirm] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupFocus, setSignupFocus] = useState('Acquisition & Buyouts');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
-  const [signupAgreed, setSignupAgreed] = useState(false);
-  const [signupSuccess, setSignupSuccess] = useState(false);
+  // Partner Registration fields
+  const [regName, setRegName] = useState('');
+  const [regFirm, setRegFirm] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regFocus, setRegFocus] = useState('Acquisition & Growth Equity');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState<string | null>(null);
+  const [regSuccess, setRegSuccess] = useState(false);
 
-  // Partner Forgot Password fields
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSubmitted, setForgotSubmitted] = useState(false);
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotMsg, setForgotMsg] = useState('');
-
-  // Mouse hover coordinate tracking for interactive card glow
-  const [partnerCardPos, setPartnerCardPos] = useState({ x: 0, y: 0, active: false });
-  const [investorCardPos, setInvestorCardPos] = useState({ x: 0, y: 0, active: false });
-
-  const handleCardMouseMove = (
-    e: React.MouseEvent<HTMLButtonElement>,
-    setter: React.Dispatch<React.SetStateAction<{ x: number; y: number; active: boolean }>>
-  ) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setter({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      active: true,
-    });
-  };
-
-  const handleCardMouseLeave = (
-    setter: React.Dispatch<React.SetStateAction<{ x: number; y: number; active: boolean }>>
-  ) => {
-    setter((prev) => ({ ...prev, active: false }));
-  };
-
-  const handleSelectRole = (role: Role) => {
-    setSelectedRole(role);
-    setPartnerMode('login');
-    setError('');
-    setForgotSubmitted(false);
-    setForgotMsg('');
-    setSignupSuccess(false);
-
-    // Provide default email for testing convenience if empty
-    if (!email) {
-      setEmail(role === 'broker' ? 'partner@quatromine.com' : 'investor@capital.ch');
-      setPassword(role === 'broker' ? 'partner2026' : 'investor2026');
-    }
-  };
-
-  const handleBack = () => {
-    if (selectedRole === 'broker' && partnerMode !== 'login') {
-      setPartnerMode('login');
-      setError('');
-      return;
-    }
-    setSelectedRole(null);
-    setPartnerMode('login');
-    setError('');
-    setForgotSubmitted(false);
-  };
-
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setError('Please enter your assigned email address');
-      return;
-    }
-    if (!password.trim()) {
-      setError('Please enter your password');
+    setLoginError(null);
+
+    if (!email.trim() || !password) {
+      setLoginError('Please enter both your email address and password.');
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const roleToUse: Role =
-      cleanEmail === 'admin@quatromine.com' || cleanEmail.startsWith('admin')
-        ? 'admin'
-        : selectedRole || 'investor';
-
-    onLogin(roleToUse, email.trim());
-  };
-
-  const handlePartnerSignupSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!signupName.trim()) {
-      setError('Please enter your full legal name');
-      return;
-    }
-    if (!signupFirm.trim()) {
-      setError('Please enter your organization or advisory firm name');
-      return;
-    }
-    if (!signupEmail.trim() || !signupEmail.includes('@')) {
-      setError('Please enter a valid corporate or business email address');
-      return;
-    }
-    if (!signupPassword || signupPassword.length < 6) {
-      setError('Password must contain at least 6 characters');
-      return;
-    }
-    if (signupPassword !== signupConfirmPassword) {
-      setError('The passwords entered do not match');
-      return;
-    }
-    if (!signupAgreed) {
-      setError('Please agree to the Quatromine Syndicate Partner Confidentiality Terms');
-      return;
-    }
-
+    setLoginLoading(true);
     try {
-      const user = await authService.registerPartner({
-        name: signupName.trim(),
-        firm: signupFirm.trim(),
-        email: signupEmail.trim(),
-        focus: signupFocus,
-        password: signupPassword,
-      });
-      setSignupSuccess(true);
-      setTimeout(() => {
-        onLogin(user.role, user.email);
-      }, 1000);
-    } catch {
-      setError('Partner registration could not be completed. Please try again.');
-    }
-  };
-
-  const handlePartnerForgotPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (!forgotEmail.trim() || !forgotEmail.includes('@')) {
-      setError('Please enter your registered partner business email');
-      return;
-    }
-
-    setForgotLoading(true);
-    try {
-      const res = await authService.requestPasswordReset(forgotEmail.trim());
-      setForgotSubmitted(true);
-      setForgotMsg(res.message);
-    } catch {
-      setError('Unable to dispatch password recovery. Please reach out to partners@quatromine.com.');
+      const res = await api.login(email.trim(), password);
+      onSuccess(res.user, res.mustChangePassword);
+    } catch (err: unknown) {
+      if (err instanceof DealbookApiError) {
+        if (err.code === 'invalid_credentials') {
+          setLoginError('Invalid email or password. Please verify your credentials.');
+        } else if (err.code === 'account_pending') {
+          setLoginError('Your partner registration is pending approval by Quatromine Operations.');
+        } else if (err.code === 'account_disabled') {
+          setLoginError('Your account has been deactivated. Please contact operations@quatromine.com.');
+        } else if (err.code === 'too_many_attempts') {
+          setLoginError('Too many failed attempts. Please wait a few moments before trying again.');
+        } else {
+          setLoginError(`Sign-in error: ${err.code.replace(/_/g, ' ')}`);
+        }
+      } else {
+        setLoginError('Could not reach the authentication service. Please check your network connection.');
+      }
     } finally {
-      setForgotLoading(false);
+      setLoginLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegError(null);
+
+    if (!regName.trim() || !regFirm.trim() || !regEmail.trim()) {
+      setRegError('Please fill in all required profile fields.');
+      return;
+    }
+    if (!regPassword || regPassword.length < 8) {
+      setRegError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setRegError('Passwords do not match.');
+      return;
+    }
+
+    setRegLoading(true);
+    try {
+      await api.registerPartner({
+        name: regName.trim(),
+        firm: regFirm.trim(),
+        email: regEmail.trim(),
+        focus: regFocus.trim(),
+        password: regPassword,
+      });
+      setRegSuccess(true);
+    } catch (err: unknown) {
+      if (err instanceof DealbookApiError) {
+        setRegError(`Application submission error: ${err.code.replace(/_/g, ' ')}`);
+      } else {
+        setRegError('Failed to submit partner application. Please try again.');
+      }
+    } finally {
+      setRegLoading(false);
     }
   };
 
   return (
     <div
-      className={`relative min-h-screen flex flex-col justify-center items-center px-5 py-12 overflow-hidden transition-colors duration-200 ${
+      className={`relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 py-12 overflow-hidden transition-colors duration-200 ${
         isLight ? 'bg-[#FFFFFF] text-slate-900' : 'bg-[#0B0B0C] text-[#EDEDE9]'
       }`}
     >
-      {/* Top Right: Theme Switcher Toggle (White / Dark mode) */}
+      {/* Top Right: Theme Switcher */}
       <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-30 flex items-center gap-2">
         <button
           type="button"
-          id="home-theme-toggle"
           onClick={toggleTheme}
           aria-label={`Switch to ${isLight ? 'Dark' : 'White'} Theme`}
           className={`p-2.5 rounded-xl transition-all cursor-pointer inline-flex items-center justify-center shrink-0 ${
@@ -204,7 +136,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-xs'
               : 'bg-[#18181C] hover:bg-[#222227] text-[#94949B] hover:text-[#EDEDE9] border border-[rgba(255,255,255,0.1)] shadow-sm'
           }`}
-          title={`Switch to ${isLight ? 'Dark' : 'White'} Theme`}
         >
           {isLight ? (
             <Moon className="w-4 h-4 text-slate-700" />
@@ -214,13 +145,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </button>
       </div>
 
-      {/* Interactive sharp constellation background responding to mouse hover */}
+      {/* Dynamic Background */}
       <FluidBackground variant="login" />
 
-      {/* Main Content */}
-      <div className="relative z-10 w-full flex flex-col items-center">
+      {/* Main Container */}
+      <div className="relative z-10 w-full max-w-md mx-auto flex flex-col items-center">
         {/* Brand Header */}
-        <div className="text-center mb-10 max-w-lg">
+        <div className="text-center mb-8 max-w-sm">
           <div
             className={`inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full border ${
               isLight
@@ -230,986 +161,358 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           >
             <span className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-[#9E7922]' : 'bg-[#C9A24D]'}`} />
             <span
-              className={`text-[10px] tracking-widest uppercase font-medium ${
+              className={`text-[10px] tracking-widest uppercase font-semibold ${
                 isLight ? 'text-amber-900' : 'text-[#C9A24D]'
               }`}
             >
-              Institutional Portal
+              Institutional DealBook
             </span>
           </div>
           <h1
-            className={`font-serif text-3xl sm:text-4xl tracking-widest uppercase font-medium mb-2.5 ${
+            className={`font-serif text-3xl sm:text-4xl tracking-widest uppercase font-medium mb-1.5 ${
               isLight ? 'text-slate-900' : 'text-[#EDEDE9]'
             }`}
           >
             QUATROMINE
           </h1>
-          <p className={`text-sm tracking-normal ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
-            Building Better Investments — Deal Dashboard
+          <p className={`text-xs tracking-normal ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
+            Private Placement & Syndication Gateway
           </p>
         </div>
 
-        {!selectedRole ? (
-          /* Role Selection Cards */
-          <div className="w-full max-w-[760px] grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Partner Card */}
-            <button
-              type="button"
-              id="role-card-broker"
-              onClick={() => handleSelectRole('broker')}
-              onMouseMove={(e) => handleCardMouseMove(e, setPartnerCardPos)}
-              onMouseLeave={() => handleCardMouseLeave(setPartnerCardPos)}
-              className={`group relative text-left rounded-2xl p-8 transition-all duration-200 hover:-translate-y-1 focus:outline-none overflow-hidden cursor-pointer border border-t-2 ${
-                isLight
-                  ? 'bg-white border-slate-200 border-t-slate-500 hover:border-slate-300 hover:bg-slate-50/80 shadow-md'
-                  : 'bg-[#151518] border-[rgba(255,255,255,0.09)] border-t-[#94A3AE] hover:border-[#94A3AE]/40 hover:bg-[#1A1A1E] shadow-xl shadow-black/60'
-              }`}
-            >
-              {/* Interactive mouse spotlight highlight */}
-              {partnerCardPos.active && (
-                <div
-                  className="pointer-events-none absolute -inset-px rounded-2xl border border-[#94A3AE]/50 transition-opacity duration-150"
-                  style={{
-                    background: `radial-gradient(220px circle at ${partnerCardPos.x}px ${partnerCardPos.y}px, rgba(148,163,174,${
-                      isLight ? '0.12' : '0.08'
-                    }), transparent 70%)`,
-                  }}
-                />
-              )}
-
-              <div className="relative z-10 flex items-center justify-between mb-4">
-                <span
-                  className={`inline-block px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full border ${
-                    isLight
-                      ? 'text-slate-700 bg-slate-100 border-slate-300'
-                      : 'text-[#94A3AE] bg-[rgba(148,163,174,0.12)] border-[rgba(148,163,174,0.25)]'
-                  }`}
-                >
-                  Partner
-                </span>
-                <span
-                  className={`text-[11px] font-mono transition-colors ${
-                    isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-[#5F5F65] group-hover:text-[#94A3AE]'
-                  }`}
-                >
-                  01 // ACCESS
-                </span>
-              </div>
-
-              <h2
-                className={`relative z-10 font-serif text-[24px] font-normal mb-3 transition-colors ${
-                  isLight ? 'text-slate-900 group-hover:text-slate-950' : 'text-[#EDEDE9] group-hover:text-white'
+        {/* Card Box */}
+        <div
+          className={`w-full rounded-2xl border p-6 sm:p-8 transition-all shadow-2xl ${
+            isLight
+              ? 'bg-white border-slate-200 text-slate-900 shadow-slate-900/10'
+              : 'bg-[#121215] border-[rgba(255,255,255,0.1)] text-[#EDEDE9] shadow-black/80'
+          }`}
+        >
+          {/* Tabs */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-6">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setLoginError(null);
+                }}
+                className={`text-xs font-medium pb-1 border-b-2 transition-colors ${
+                  mode === 'login'
+                    ? 'border-[#C9A24D] text-[#C9A24D]'
+                    : 'border-transparent text-stone-400 hover:text-white'
                 }`}
               >
-                Partner Login
-              </h2>
-              <p
-                className={`relative z-10 text-[14px] leading-relaxed ${
-                  isLight ? 'text-slate-600' : 'text-[#94949B]'
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('register');
+                  setRegError(null);
+                }}
+                className={`text-xs font-medium pb-1 border-b-2 transition-colors ${
+                  mode === 'register'
+                    ? 'border-[#C9A24D] text-[#C9A24D]'
+                    : 'border-transparent text-stone-400 hover:text-white'
                 }`}
               >
-                Track the deals you've brought to Quatromine and their current status.
-              </p>
-
-              <div
-                className={`relative z-10 mt-8 pt-4 border-t flex items-center justify-between text-xs font-medium ${
-                  isLight
-                    ? 'border-slate-200 text-slate-700'
-                    : 'border-[rgba(255,255,255,0.06)] text-[#94A3AE]'
-                }`}
-              >
-                <span>Enter as Partner</span>
-                <span className="text-base transition-transform group-hover:translate-x-1">&rarr;</span>
-              </div>
-            </button>
-
-            {/* Investor Card */}
-            <button
-              type="button"
-              id="role-card-investor"
-              onClick={() => handleSelectRole('investor')}
-              onMouseMove={(e) => handleCardMouseMove(e, setInvestorCardPos)}
-              onMouseLeave={() => handleCardMouseLeave(setInvestorCardPos)}
-              className={`group relative text-left rounded-2xl p-8 transition-all duration-200 hover:-translate-y-1 focus:outline-none overflow-hidden cursor-pointer border border-t-2 ${
-                isLight
-                  ? 'bg-white border-slate-200 border-t-[#9E7922] hover:border-amber-300 hover:bg-amber-50/20 shadow-md'
-                  : 'bg-[#151518] border-[rgba(255,255,255,0.09)] border-t-[#C9A24D] hover:border-[#C9A24D]/50 hover:bg-[#1A1A1E] shadow-xl shadow-black/60'
-              }`}
-            >
-              {/* Interactive mouse spotlight highlight */}
-              {investorCardPos.active && (
-                <div
-                  className="pointer-events-none absolute -inset-px rounded-2xl border border-[#C9A24D]/50 transition-opacity duration-150"
-                  style={{
-                    background: `radial-gradient(220px circle at ${investorCardPos.x}px ${investorCardPos.y}px, rgba(201,162,77,${
-                      isLight ? '0.15' : '0.1'
-                    }), transparent 70%)`,
-                  }}
-                />
-              )}
-
-              <div className="relative z-10 flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-block px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full border ${
-                      isLight
-                        ? 'text-amber-900 bg-amber-100 border-amber-300'
-                        : 'text-[#C9A24D] bg-[rgba(201,162,77,0.14)] border-[rgba(201,162,77,0.3)]'
-                    }`}
-                  >
-                    Vetted Investor
-                  </span>
-                  <span
-                    className={`inline-block px-2 py-0.5 text-[9px] font-semibold tracking-wider uppercase rounded-full border ${
-                      isLight
-                        ? 'text-amber-800 bg-amber-50 border-amber-200/80'
-                        : 'text-amber-300/90 bg-amber-950/40 border-amber-500/30'
-                    }`}
-                  >
-                    By Invitation Only
-                  </span>
-                </div>
-                <span
-                  className={`text-[11px] font-mono transition-colors ${
-                    isLight ? 'text-slate-400 group-hover:text-amber-800' : 'text-[#5F5F65] group-hover:text-[#C9A24D]'
-                  }`}
-                >
-                  02 // ACCESS
-                </span>
-              </div>
-
-              <h2
-                className={`relative z-10 font-serif text-[24px] font-normal mb-3 transition-colors ${
-                  isLight ? 'text-slate-900 group-hover:text-slate-950' : 'text-[#EDEDE9] group-hover:text-white'
-                }`}
-              >
-                Investor Login
-              </h2>
-              <p
-                className={`relative z-10 text-[14px] leading-relaxed ${
-                  isLight ? 'text-slate-600' : 'text-[#94949B]'
-                }`}
-              >
-                Browse the opportunities Quatromine has vetted and published for you. Access is strictly by invitation only.
-              </p>
-
-              <div
-                className={`relative z-10 mt-8 pt-4 border-t flex items-center justify-between text-xs font-medium ${
-                  isLight
-                    ? 'border-slate-200 text-amber-900'
-                    : 'border-[rgba(255,255,255,0.06)] text-[#C9A24D]'
-                }`}
-              >
-                <span>Enter as Vetted Investor</span>
-                <span className="text-base transition-transform group-hover:translate-x-1">&rarr;</span>
-              </div>
-            </button>
-          </div>
-        ) : selectedRole === 'broker' ? (
-          /* ============================================================
-             PARTNER PORTAL (Login, Sign-Up & Forgot Password)
-             ============================================================ */
-          <div className={`w-full transition-all ${partnerMode === 'signup' ? 'max-w-[480px]' : 'max-w-[420px]'}`}>
-            <div
-              className={`rounded-2xl p-7 sm:p-8 border transition-colors ${
-                isLight
-                  ? 'bg-white border-slate-200 shadow-xl'
-                  : 'bg-[#151518] border-[rgba(255,255,255,0.09)] shadow-2xl shadow-black/70'
-              }`}
-            >
-              {/* Header Bar */}
-              <div
-                className={`flex items-center justify-between mb-5 pb-3 border-b ${
-                  isLight ? 'border-slate-200' : 'border-[rgba(255,255,255,0.07)]'
-                }`}
-              >
-                <button
-                  type="button"
-                  id="btn-back-role"
-                  onClick={handleBack}
-                  className={`inline-flex items-center gap-1.5 text-xs transition-colors focus:outline-none cursor-pointer ${
-                    isLight ? 'text-slate-500 hover:text-slate-900' : 'text-[#94949B] hover:text-[#EDEDE9]'
-                  }`}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>{partnerMode !== 'login' ? 'Back to Sign In' : 'Select Role'}</span>
-                </button>
-                <span
-                  className={`text-[10px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full border ${
-                    isLight
-                      ? 'text-slate-700 bg-slate-100 border-slate-300'
-                      : 'text-[#94A3AE] bg-[rgba(148,163,174,0.12)] border-[rgba(148,163,174,0.25)]'
-                  }`}
-                >
-                  Partner Origination
-                </span>
-              </div>
-
-              {/* Mode Toggle Tabs (Only shown when not in forgot-password) */}
-              {partnerMode !== 'forgot-password' && (
-                <div
-                  className={`flex rounded-xl p-1 mb-6 border ${
-                    isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#101012] border-[rgba(255,255,255,0.08)]'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPartnerMode('login');
-                      setError('');
-                    }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                      partnerMode === 'login'
-                        ? isLight
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'bg-[#1F1F24] text-[#EDEDE9] shadow-xs'
-                        : isLight
-                        ? 'text-slate-500 hover:text-slate-800'
-                        : 'text-[#8A8A92] hover:text-[#EDEDE9]'
-                    }`}
-                  >
-                    Partner Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPartnerMode('signup');
-                      setError('');
-                    }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                      partnerMode === 'signup'
-                        ? isLight
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'bg-[#1F1F24] text-[#EDEDE9] shadow-xs'
-                        : isLight
-                        ? 'text-slate-500 hover:text-slate-800'
-                        : 'text-[#8A8A92] hover:text-[#EDEDE9]'
-                    }`}
-                  >
-                    Apply for Partner Access
-                  </button>
-                </div>
-              )}
-
-              {/* 1. PARTNER LOGIN MODE */}
-              {partnerMode === 'login' && (
-                <>
-                  <h2
-                    className={`font-serif text-[24px] font-normal mb-1.5 ${
-                      isLight ? 'text-slate-900' : 'text-[#EDEDE9]'
-                    }`}
-                  >
-                    Partner Sign In
-                  </h2>
-                  <p className={`text-xs mb-6 ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
-                    Sign in to access your deal origination and syndication portfolio
-                  </p>
-
-                  <form onSubmit={handleLoginSubmit} className="space-y-4">
-                    <div>
-                      <label
-                        className={`block text-xs font-medium mb-1.5 ${
-                          isLight ? 'text-slate-700' : 'text-[#94949B]'
-                        }`}
-                        htmlFor="email-input"
-                      >
-                        Business Email Address
-                      </label>
-                      <div className="relative">
-                        <input
-                          id="email-input"
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="partner@quatromine.com"
-                          className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors border ${
-                            isLight
-                              ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                              : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                          }`}
-                        />
-                        <Mail
-                          className={`w-4 h-4 absolute right-3.5 top-3 pointer-events-none ${
-                            isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label
-                          className={`block text-xs font-medium ${
-                            isLight ? 'text-slate-700' : 'text-[#94949B]'
-                          }`}
-                          htmlFor="password-input"
-                        >
-                          Password
-                        </label>
-                        {/* FORGOT PASSWORD TRIGGER (PARTNER ONLY) */}
-                        <button
-                          type="button"
-                          id="partner-forgot-password-link"
-                          onClick={() => {
-                            setPartnerMode('forgot-password');
-                            setForgotEmail(email || '');
-                            setError('');
-                            setForgotSubmitted(false);
-                          }}
-                          className={`text-xs transition-colors cursor-pointer ${
-                            isLight
-                              ? 'text-slate-500 hover:text-slate-900 hover:underline'
-                              : 'text-[#94A3AE] hover:text-white hover:underline'
-                          }`}
-                        >
-                          Forgot password?
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          id="password-input"
-                          type="password"
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••••••"
-                          className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors border ${
-                            isLight
-                              ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                              : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                          }`}
-                        />
-                        <Lock
-                          className={`w-4 h-4 absolute right-3.5 top-3 pointer-events-none ${
-                            isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    {error && (
-                      <div className="text-xs text-rose-500 bg-rose-50 border border-rose-200 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span>{error}</span>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      id="btn-submit-login"
-                      className={`w-full font-medium text-sm py-3 px-4 rounded-xl transition-opacity duration-150 hover:opacity-95 cursor-pointer focus:outline-none shadow-md ${
-                        isLight ? 'bg-slate-700 text-white' : 'bg-[#94A3AE] text-[#0B0B0C]'
-                      }`}
-                    >
-                      Sign in as Partner
-                    </button>
-                  </form>
-
-                  <div
-                    className={`mt-6 pt-5 border-t text-center ${
-                      isLight ? 'border-slate-200' : 'border-[rgba(255,255,255,0.08)]'
-                    }`}
-                  >
-                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-[#5F5F65]'}`}>
-                      New deal origination partner?{' '}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPartnerMode('signup');
-                          setError('');
-                        }}
-                        className={`font-semibold cursor-pointer underline ml-1 ${
-                          isLight ? 'text-slate-800' : 'text-[#94A3AE]'
-                        }`}
-                      >
-                        Apply for Partner Access
-                      </button>
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {/* 2. PARTNER FORGOT PASSWORD MODE */}
-              {partnerMode === 'forgot-password' && (
-                <>
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                        isLight ? 'bg-slate-100 text-slate-700' : 'bg-[#1F1F24] text-[#94A3AE]'
-                      }`}
-                    >
-                      <KeyRound className="w-4 h-4" />
-                    </div>
-                    <h2
-                      className={`font-serif text-[22px] font-normal ${
-                        isLight ? 'text-slate-900' : 'text-[#EDEDE9]'
-                      }`}
-                    >
-                      Reset Partner Password
-                    </h2>
-                  </div>
-                  <p className={`text-xs mb-6 leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
-                    Enter your registered partner email address. We will verify your syndication credentials and send a secure reset link.
-                  </p>
-
-                  {forgotSubmitted ? (
-                    <div className="space-y-4">
-                      <div
-                        className={`p-4 rounded-xl border flex items-start gap-3 ${
-                          isLight
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                            : 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
-                        }`}
-                      >
-                        <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
-                        <div className="text-xs leading-relaxed">
-                          <p className="font-semibold text-sm mb-1">Reset Instructions Sent</p>
-                          <p>{forgotMsg}</p>
-                          <p className="mt-2 text-[11px] opacity-80">
-                            Please check your spam folder if you do not receive the email within 2 minutes.
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPartnerMode('login');
-                          setForgotSubmitted(false);
-                          setError('');
-                        }}
-                        className={`w-full font-medium text-sm py-2.5 px-4 rounded-xl cursor-pointer transition-colors ${
-                          isLight
-                            ? 'bg-slate-800 text-white hover:bg-slate-900'
-                            : 'bg-[#94A3AE] text-[#0B0B0C] hover:opacity-95'
-                        }`}
-                      >
-                        Return to Partner Sign In
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handlePartnerForgotPasswordSubmit} className="space-y-4">
-                      <div>
-                        <label
-                          className={`block text-xs font-medium mb-1.5 ${
-                            isLight ? 'text-slate-700' : 'text-[#94949B]'
-                          }`}
-                          htmlFor="forgot-email-input"
-                        >
-                          Registered Partner Email
-                        </label>
-                        <div className="relative">
-                          <input
-                            id="forgot-email-input"
-                            type="email"
-                            required
-                            value={forgotEmail}
-                            onChange={(e) => setForgotEmail(e.target.value)}
-                            placeholder="partner@quatromine.com"
-                            className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors border ${
-                              isLight
-                                ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                                : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                            }`}
-                          />
-                          <Mail
-                            className={`w-4 h-4 absolute right-3.5 top-3 pointer-events-none ${
-                              isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      {error && (
-                        <div className="text-xs text-rose-500 bg-rose-50 border border-rose-200 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{error}</span>
-                        </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        disabled={forgotLoading}
-                        id="btn-submit-forgot"
-                        className={`w-full font-medium text-sm py-3 px-4 rounded-xl transition-opacity duration-150 hover:opacity-95 cursor-pointer focus:outline-none shadow-md ${
-                          isLight ? 'bg-slate-700 text-white' : 'bg-[#94A3AE] text-[#0B0B0C]'
-                        }`}
-                      >
-                        {forgotLoading ? 'Verifying Credentials...' : 'Send Password Reset Link'}
-                      </button>
-
-                      <div className="text-center pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPartnerMode('login');
-                            setError('');
-                          }}
-                          className={`text-xs transition-colors cursor-pointer ${
-                            isLight ? 'text-slate-500 hover:text-slate-900' : 'text-[#94A3AE] hover:text-white'
-                          }`}
-                        >
-                          Remembered your password? Back to Sign In
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </>
-              )}
-
-              {/* 3. PARTNER SIGN-UP MODE */}
-              {partnerMode === 'signup' && (
-                <>
-                  <h2
-                    className={`font-serif text-[24px] font-normal mb-1.5 ${
-                      isLight ? 'text-slate-900' : 'text-[#EDEDE9]'
-                    }`}
-                  >
-                    Partner Registration
-                  </h2>
-                  <p className={`text-xs mb-5 ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
-                    Register your advisory firm or origination desk to submit deals to Quatromine
-                  </p>
-
-                  {signupSuccess ? (
-                    <div
-                      className={`p-6 rounded-xl border text-center space-y-3 ${
-                        isLight
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                          : 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-600 animate-pulse" />
-                      <h3 className="font-semibold text-base">Partner Account Activated</h3>
-                      <p className="text-xs max-w-sm mx-auto leading-relaxed">
-                        Welcome to the Quatromine Syndicate Network. Initializing your partner workspace...
-                      </p>
-                    </div>
-                  ) : (
-                    <form onSubmit={handlePartnerSignupSubmit} className="space-y-3.5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            className={`block text-[11px] font-medium mb-1 ${
-                              isLight ? 'text-slate-700' : 'text-[#94949B]'
-                            }`}
-                            htmlFor="signup-name"
-                          >
-                            Full Legal Name
-                          </label>
-                          <div className="relative">
-                            <input
-                              id="signup-name"
-                              type="text"
-                              required
-                              value={signupName}
-                              onChange={(e) => setSignupName(e.target.value)}
-                              placeholder="e.g. Marc Lehmann"
-                              className={`w-full rounded-xl px-3 py-2 text-xs outline-none transition-colors border ${
-                                isLight
-                                  ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                                  : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                              }`}
-                            />
-                            <User
-                              className={`w-3.5 h-3.5 absolute right-3 top-2.5 pointer-events-none ${
-                                isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                              }`}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label
-                            className={`block text-[11px] font-medium mb-1 ${
-                              isLight ? 'text-slate-700' : 'text-[#94949B]'
-                            }`}
-                            htmlFor="signup-firm"
-                          >
-                            Firm / Entity Name
-                          </label>
-                          <div className="relative">
-                            <input
-                              id="signup-firm"
-                              type="text"
-                              required
-                              value={signupFirm}
-                              onChange={(e) => setSignupFirm(e.target.value)}
-                              placeholder="e.g. Zurich Merchant Advisory"
-                              className={`w-full rounded-xl px-3 py-2 text-xs outline-none transition-colors border ${
-                                isLight
-                                  ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                                  : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                              }`}
-                            />
-                            <Building
-                              className={`w-3.5 h-3.5 absolute right-3 top-2.5 pointer-events-none ${
-                                isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label
-                          className={`block text-[11px] font-medium mb-1 ${
-                            isLight ? 'text-slate-700' : 'text-[#94949B]'
-                          }`}
-                          htmlFor="signup-email"
-                        >
-                          Corporate Business Email
-                        </label>
-                        <div className="relative">
-                          <input
-                            id="signup-email"
-                            type="email"
-                            required
-                            value={signupEmail}
-                            onChange={(e) => setSignupEmail(e.target.value)}
-                            placeholder="m.lehmann@advisory.ch"
-                            className={`w-full rounded-xl px-3 py-2 text-xs outline-none transition-colors border ${
-                              isLight
-                                ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                                : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                            }`}
-                          />
-                          <Mail
-                            className={`w-3.5 h-3.5 absolute right-3 top-2.5 pointer-events-none ${
-                              isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label
-                          className={`block text-[11px] font-medium mb-1 ${
-                            isLight ? 'text-slate-700' : 'text-[#94949B]'
-                          }`}
-                          htmlFor="signup-focus"
-                        >
-                          Primary Deal Asset Focus
-                        </label>
-                        <div className="relative">
-                          <select
-                            id="signup-focus"
-                            value={signupFocus}
-                            onChange={(e) => setSignupFocus(e.target.value)}
-                            className={`w-full rounded-xl px-3 py-2 text-xs outline-none transition-colors border appearance-none ${
-                              isLight
-                                ? 'bg-slate-50 border-slate-200 text-slate-900 focus:border-slate-400'
-                                : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] focus:border-[rgba(255,255,255,0.28)]'
-                            }`}
-                          >
-                            <option value="Acquisition & Buyouts">Acquisition &amp; Corporate Buyouts</option>
-                            <option value="Venture Capital & Growth">Venture Capital &amp; Growth Equity</option>
-                            <option value="Infrastructure & Real Assets">Infrastructure &amp; Real Assets</option>
-                            <option value="Private Debt & Mezzanine">Private Debt &amp; Mezzanine Financing</option>
-                            <option value="Special Situations">Special Situations &amp; Distressed</option>
-                          </select>
-                          <Briefcase
-                            className={`w-3.5 h-3.5 absolute right-3 top-2.5 pointer-events-none ${
-                              isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            className={`block text-[11px] font-medium mb-1 ${
-                              isLight ? 'text-slate-700' : 'text-[#94949B]'
-                            }`}
-                            htmlFor="signup-pwd"
-                          >
-                            Password (min. 6 chars)
-                          </label>
-                          <input
-                            id="signup-pwd"
-                            type="password"
-                            required
-                            value={signupPassword}
-                            onChange={(e) => setSignupPassword(e.target.value)}
-                            placeholder="••••••••••••"
-                            className={`w-full rounded-xl px-3 py-2 text-xs outline-none transition-colors border ${
-                              isLight
-                                ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                                : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                            }`}
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            className={`block text-[11px] font-medium mb-1 ${
-                              isLight ? 'text-slate-700' : 'text-[#94949B]'
-                            }`}
-                            htmlFor="signup-pwd-confirm"
-                          >
-                            Confirm Password
-                          </label>
-                          <input
-                            id="signup-pwd-confirm"
-                            type="password"
-                            required
-                            value={signupConfirmPassword}
-                            onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                            placeholder="••••••••••••"
-                            className={`w-full rounded-xl px-3 py-2 text-xs outline-none transition-colors border ${
-                              isLight
-                                ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                                : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-1">
-                        <label className="flex items-start gap-2.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={signupAgreed}
-                            onChange={(e) => setSignupAgreed(e.target.checked)}
-                            className="mt-0.5 rounded text-slate-700 focus:ring-0 cursor-pointer"
-                          />
-                          <span
-                            className={`text-[11px] leading-relaxed select-none ${
-                              isLight ? 'text-slate-600' : 'text-[#94949B]'
-                            }`}
-                          >
-                            I confirm affiliation as an authorized deal intermediary and agree to the{' '}
-                            <span className={isLight ? 'text-slate-900 font-medium' : 'text-[#EDEDE9] font-medium'}>
-                              Quatromine Partner NDA &amp; Non-Circumvention Terms
-                            </span>
-                            .
-                          </span>
-                        </label>
-                      </div>
-
-                      {error && (
-                        <div className="text-xs text-rose-500 bg-rose-50 border border-rose-200 rounded-xl px-3.5 py-2 flex items-center gap-2">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>{error}</span>
-                        </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        id="btn-submit-signup"
-                        className={`w-full font-medium text-xs py-2.5 px-4 rounded-xl transition-opacity duration-150 hover:opacity-95 cursor-pointer focus:outline-none shadow-md ${
-                          isLight ? 'bg-slate-800 text-white' : 'bg-[#94A3AE] text-[#0B0B0C]'
-                        }`}
-                      >
-                        Register &amp; Access Partner Workspace
-                      </button>
-
-                      <div className="text-center pt-1">
-                        <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-[#5F5F65]'}`}>
-                          Already registered?{' '}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPartnerMode('login');
-                              setError('');
-                            }}
-                            className={`font-semibold cursor-pointer underline ml-1 ${
-                              isLight ? 'text-slate-800' : 'text-[#94A3AE]'
-                            }`}
-                          >
-                            Sign In to Partner Portal
-                          </button>
-                        </p>
-                      </div>
-                    </form>
-                  )}
-                </>
-              )}
+                Partner Application
+              </button>
             </div>
-          </div>
-        ) : (
-          /* ============================================================
-             INVESTOR PORTAL (Strictly "By Invitation Only" - No Sign Up)
-             ============================================================ */
-          <div className="w-full max-w-[420px]">
-            <div
-              className={`rounded-2xl p-7 sm:p-8 border transition-colors ${
-                isLight
-                  ? 'bg-white border-slate-200 shadow-xl'
-                  : 'bg-[#151518] border-[rgba(255,255,255,0.09)] shadow-2xl shadow-black/70'
+
+            <button
+              type="button"
+              onClick={() => setMode('help')}
+              className={`text-[11px] text-stone-400 hover:text-[#C9A24D] transition-colors ${
+                mode === 'help' ? 'text-[#C9A24D]' : ''
               }`}
             >
-              <div
-                className={`flex items-center justify-between mb-5 pb-3 border-b ${
-                  isLight ? 'border-slate-200' : 'border-[rgba(255,255,255,0.07)]'
-                }`}
-              >
-                <button
-                  type="button"
-                  id="btn-back-role"
-                  onClick={handleBack}
-                  className={`inline-flex items-center gap-1.5 text-xs transition-colors focus:outline-none cursor-pointer ${
-                    isLight ? 'text-slate-500 hover:text-slate-900' : 'text-[#94949B] hover:text-[#EDEDE9]'
-                  }`}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Select Role</span>
-                </button>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`text-[10px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full border ${
+              Support
+            </button>
+          </div>
+
+          {/* MODE: SIGN IN */}
+          {mode === 'login' && (
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              {loginError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-stone-400 mb-1.5">
+                  Institutional Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@firm.com"
+                    className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] transition-colors ${
                       isLight
-                        ? 'text-amber-900 bg-amber-100 border-amber-300'
-                        : 'text-[#C9A24D] bg-[rgba(201,162,77,0.12)] border-[rgba(201,162,77,0.28)]'
+                        ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                        : 'bg-[#18181C] border-[#2E2E34] text-[#EDEDE9] placeholder:text-[#5F5F65]'
                     }`}
-                  >
-                    Investor Portal
-                  </span>
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mb-1.5">
-                <h2
-                  className={`font-serif text-[24px] font-normal ${
-                    isLight ? 'text-slate-900' : 'text-[#EDEDE9]'
-                  }`}
-                >
-                  Investor Sign In
-                </h2>
-                <span
-                  className={`text-[9px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full border ${
-                    isLight
-                      ? 'text-amber-800 bg-amber-50 border-amber-200'
-                      : 'text-amber-300 bg-amber-950/40 border-amber-500/30'
-                  }`}
-                >
-                  By Invitation Only
-                </span>
-              </div>
-
-              <p className={`text-xs mb-4 ${isLight ? 'text-slate-600' : 'text-[#94949B]'}`}>
-                Review opportunities vetted and published exclusively for institutional syndicates
-              </p>
-
-              {/* NOTICE: PROMINENT BY INVITATION ONLY CALLOUT */}
-              <div
-                className={`mb-5 p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 ${
-                  isLight
-                    ? 'bg-amber-50/70 border-amber-200 text-slate-700'
-                    : 'bg-[#181610] border-[rgba(201,162,77,0.25)] text-[#D4C3A3]'
-                }`}
-              >
-                <ShieldCheck
-                  className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-amber-700' : 'text-[#C9A24D]'}`}
-                />
-                <div>
-                  <span className="font-semibold block mb-0.5 text-[11px] uppercase tracking-wider">
-                    Institutional Access by Invitation Only
-                  </span>
-                  <span>
-                    Investor portal credentials are issued exclusively to verified institutional funds, family offices, and authorized syndicate principals. Unsolicited registrations are not accepted.
-                  </span>
-                </div>
-              </div>
-
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div>
-                  <label
-                    className={`block text-xs font-medium mb-1.5 ${
-                      isLight ? 'text-slate-700' : 'text-[#94949B]'
-                    }`}
-                    htmlFor="email-input"
-                  >
-                    Institutional Email Address
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-stone-400">
+                    Password / Temporary Key
                   </label>
-                  <div className="relative">
-                    <input
-                      id="email-input"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="investor@capital.ch"
-                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors border ${
-                        isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                          : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                      }`}
-                    />
-                    <Mail
-                      className={`w-4 h-4 absolute right-3.5 top-3 pointer-events-none ${
-                        isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    className={`block text-xs font-medium mb-1.5 ${
-                      isLight ? 'text-slate-700' : 'text-[#94949B]'
-                    }`}
-                    htmlFor="password-input"
+                  <button
+                    type="button"
+                    onClick={() => setMode('help')}
+                    className="text-[11px] text-[#C9A24D] hover:underline"
                   >
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="password-input"
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors border ${
-                        isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-                          : 'bg-[#111113] border-[rgba(255,255,255,0.09)] text-[#EDEDE9] placeholder-[#5F5F65] focus:border-[rgba(255,255,255,0.28)]'
-                      }`}
-                    />
-                    <Lock
-                      className={`w-4 h-4 absolute right-3.5 top-3 pointer-events-none ${
-                        isLight ? 'text-slate-400' : 'text-[#5F5F65]'
-                      }`}
-                    />
-                  </div>
+                    Lost password?
+                  </button>
                 </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] transition-colors ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                        : 'bg-[#18181C] border-[#2E2E34] text-[#EDEDE9] placeholder:text-[#5F5F65]'
+                    }`}
+                  />
+                </div>
+              </div>
 
-                {error && (
-                  <div className="text-xs text-rose-500 bg-rose-50 border border-rose-200 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                )}
-
+              <div className="pt-2">
                 <button
                   type="submit"
-                  id="btn-submit-login"
-                  className={`w-full font-medium text-sm py-3 px-4 rounded-xl transition-opacity duration-150 hover:opacity-95 cursor-pointer focus:outline-none shadow-md ${
-                    isLight ? 'bg-amber-600 text-white' : 'bg-[#C9A24D] text-[#0B0B0C]'
-                  }`}
+                  disabled={loginLoading}
+                  className="w-full py-2.5 px-4 rounded-xl font-medium text-xs tracking-wide bg-[#C9A24D] hover:bg-[#d4b05e] text-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                 >
-                  Sign in as Vetted Investor
+                  {loginLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                      <span>Authenticating Session...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Enter DealBook</span>
+                    </>
+                  )}
                 </button>
-              </form>
+              </div>
 
-              <div
-                className={`mt-6 pt-5 border-t text-center ${
-                  isLight ? 'border-slate-200' : 'border-[rgba(255,255,255,0.08)]'
-                }`}
-              >
-                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-[#5F5F65]'}`}>
-                  Access is issued directly by Quatromine by invitation only.
-                </p>
-                <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-400' : 'text-[#4A4A50]'}`}>
-                  For syndication clearance, contact your Quatromine relationship manager.
+              <div className="pt-3 border-t border-white/5 text-center">
+                <p className="text-[11px] text-stone-500">
+                  New origination partner?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setMode('register')}
+                    className="text-[#C9A24D] hover:underline"
+                  >
+                    Apply for partner accreditation
+                  </button>
                 </p>
               </div>
+            </form>
+          )}
+
+          {/* MODE: PARTNER REGISTRATION */}
+          {mode === 'register' && (
+            <div>
+              {regSuccess ? (
+                <div className="text-center py-4 space-y-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-serif text-base text-emerald-400">Application Submitted</h3>
+                  <p className="text-xs text-stone-300 leading-relaxed max-w-sm mx-auto">
+                    Your partner origination application has been received and is currently pending review by Quatromine Operations.
+                    You will receive access clearance once an administrator approves your mandate profile.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('login');
+                      setRegSuccess(false);
+                    }}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#C9A24D] text-black hover:bg-[#d4b05e] transition-colors"
+                  >
+                    Return to Sign In
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                  <div className="p-3 rounded-xl bg-[rgba(201,162,77,0.06)] border border-[rgba(201,162,77,0.2)] text-[11px] text-stone-300 leading-relaxed mb-3">
+                    Partner registration allows qualified advisors, corporate finance leads, and origination sponsors to track pipeline deals. Applications undergo administrative review.
+                  </div>
+
+                  {regError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{regError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-medium text-stone-400 mb-1">
+                      Full Legal Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="e.g. Marc Vance"
+                      className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] ${
+                        isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-[#18181C] border-[#2E2E34] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-stone-400 mb-1">
+                      Firm / Organization *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={regFirm}
+                      onChange={(e) => setRegFirm(e.target.value)}
+                      placeholder="e.g. Alpine Capital Partners"
+                      className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] ${
+                        isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-[#18181C] border-[#2E2E34] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-stone-400 mb-1">
+                      Business Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="e.g. m.vance@alpine.com"
+                      className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] ${
+                        isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-[#18181C] border-[#2E2E34] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-stone-400 mb-1">
+                      Mandate Focus / Sectors
+                    </label>
+                    <input
+                      type="text"
+                      value={regFocus}
+                      onChange={(e) => setRegFocus(e.target.value)}
+                      placeholder="e.g. Deep Tech, M&A Buyouts, AI"
+                      className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] ${
+                        isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-[#18181C] border-[#2E2E34] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-stone-400 mb-1">
+                        Password *
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="At least 8 chars"
+                        className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] ${
+                          isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-[#18181C] border-[#2E2E34] text-white'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-stone-400 mb-1">
+                        Confirm *
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Repeat password"
+                        className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] ${
+                          isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-[#18181C] border-[#2E2E34] text-white'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={regLoading}
+                      className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs tracking-wide bg-[#C9A24D] hover:bg-[#d4b05e] text-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      {regLoading ? 'Submitting Application...' : 'Submit Partner Application'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* MODE: SUPPORT & PASSWORD HELP */}
+          {mode === 'help' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+                <div className="w-8 h-8 rounded-lg bg-[rgba(201,162,77,0.15)] text-[#C9A24D] flex items-center justify-center">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-sm font-medium">Access Assistance</h3>
+                  <p className="text-[11px] text-stone-400">Security & Authentication Policy</p>
+                </div>
+              </div>
+
+              <div className="text-xs text-stone-300 space-y-3 leading-relaxed">
+                <p>
+                  To uphold institutional confidentiality and regulatory compliance, the Quatromine DealBook does not utilize automated email reset links.
+                </p>
+                <p>
+                  If you have forgotten your password or need a temporary one-time credential reset, please contact Quatromine Operations:
+                </p>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 font-mono text-[11px] text-[#C9A24D]">
+                  operations@quatromine.com
+                </div>
+                <p className="text-[11px] text-stone-400">
+                  An administrator will verify your institutional identity and issue a secure one-time password for your account.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white transition-colors"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

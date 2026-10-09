@@ -1,6 +1,6 @@
 import React from 'react';
-import { Search, X, Bookmark, RotateCcw, Sparkles, Filter, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
-import { FilterState, Jurisdiction, OpportunityType, Sector, Role, InvestmentType } from '../types';
+import { Search, X, Bookmark, RotateCcw } from 'lucide-react';
+import { FilterState, Role } from '../types';
 import { useTheme } from '../context/ThemeContext';
 
 interface DealFiltersProps {
@@ -10,73 +10,42 @@ interface DealFiltersProps {
   role?: Role;
   trackedCount?: number;
   totalDealsCount?: number;
-  featuredCount?: number;
+  availableStages?: string[];
+  availableAssetClasses?: string[];
+  availableGeographies?: string[];
 }
 
-const JURISDICTIONS: Jurisdiction[] = ['Switzerland', 'Luxembourg'];
-
-const SECTORS: Sector[] = [
-  'Digital Infrastructure & AI',
-  'Sustainability & Transition',
-  'Healthcare Technology',
-];
-
-const INVESTMENT_TYPES: { label: string; value: string }[] = [
-  { label: 'Acquisition (M&A / Buyout)', value: 'Acquisition' },
-  { label: 'Venture Capital (Early Stage)', value: 'Venture Capital' },
-  { label: 'Growth Equity (Scaling)', value: 'Growth Equity' },
-  { label: 'Real Asset / Project Infrastructure', value: 'Real Asset / Project' },
-  { label: 'Structured / Mezzanine Debt', value: 'Structured / Mezzanine Debt' },
-  { label: 'Fund Commitment (Emerging Managers)', value: 'Fund Commitment' },
-];
-
-const TICKET_RANGES: { label: string; value: string }[] = [
-  { label: 'All Ticket Sizes', value: 'all' },
-  { label: 'Under CHF/€10M', value: 'under-10m' },
-  { label: 'CHF/€10M – CHF/€25M', value: '10m-25m' },
-  { label: 'Over CHF/€25M', value: 'over-25m' },
-];
-
-const SORT_OPTIONS: { label: string; value: string }[] = [
-  { label: 'Default (Featured First)', value: 'default' },
-  { label: 'Ticket: High to Low', value: 'ticket-desc' },
-  { label: 'Ticket: Low to High', value: 'ticket-asc' },
-  { label: 'Company Name (A–Z)', value: 'name-asc' },
-];
+const DEFAULT_STAGES = ['Early Stage', 'Growth', 'Late Stage', 'Pre-IPO', 'Mega-Cap'];
+const DEFAULT_ASSET_CLASSES = ['VC', 'Growth', 'PE', 'Deep Tech', 'RA', 'Other'];
 
 export const DealFilters: React.FC<DealFiltersProps> = ({
   filters,
   onChange,
   resultCount,
-  role = 'broker',
   trackedCount = 0,
   totalDealsCount = 0,
-  featuredCount = 0,
+  availableStages = DEFAULT_STAGES,
+  availableAssetClasses = DEFAULT_ASSET_CLASSES,
+  availableGeographies = [],
 }) => {
   const { isLight } = useTheme();
 
   const hasActiveFilters =
     filters.search.trim() !== '' ||
-    filters.jurisdiction !== 'all' ||
-    filters.sector !== 'all' ||
-    filters.opportunityType !== 'all' ||
-    (filters.investmentType && filters.investmentType !== 'all') ||
-    (filters.ticketRange && filters.ticketRange !== 'all') ||
-    (filters.sortBy && filters.sortBy !== 'default') ||
-    Boolean(filters.featuredOnly) ||
+    filters.companyStage !== 'all' ||
+    filters.assetClass !== 'all' ||
+    filters.geography !== 'all' ||
     Boolean(filters.trackedOnly);
 
   const handleClear = () => {
     onChange({
       search: '',
-      jurisdiction: 'all',
-      sector: 'all',
-      opportunityType: 'all',
-      investmentType: 'all',
-      ticketRange: 'all',
-      stage: 'all',
+      companyStage: 'all',
+      assetClass: 'all',
+      cluster: 'all',
+      geography: 'all',
+      businessModel: 'all',
       sortBy: 'default',
-      featuredOnly: false,
       trackedOnly: false,
     });
   };
@@ -85,374 +54,135 @@ export const DealFilters: React.FC<DealFiltersProps> = ({
     onChange({
       ...filters,
       trackedOnly: !filters.trackedOnly,
-      featuredOnly: false,
-    });
-  };
-
-  const toggleFeaturedFilter = () => {
-    onChange({
-      ...filters,
-      featuredOnly: !filters.featuredOnly,
-      trackedOnly: false,
     });
   };
 
   return (
-    <div className="space-y-3.5 mb-6">
-      {/* Investor View Quick Filter Tabs: All vs Featured vs Tracked Opportunities */}
-      {role === 'investor' && (
-        <div
-          className={`flex flex-wrap items-center justify-between gap-3 pb-3 border-b ${
-            isLight ? 'border-slate-200' : 'border-[rgba(255,255,255,0.06)]'
-          }`}
-        >
-          <div
-            className={`flex flex-wrap items-center gap-1.5 p-1 rounded-xl shadow-xs border ${
-              isLight ? 'bg-slate-100/90 border-slate-200' : 'bg-[#151518] border-[rgba(255,255,255,0.08)]'
-            }`}
-          >
-            {/* All Opportunities Tab */}
-            <button
-              type="button"
-              id="filter-tab-all-deals"
-              onClick={() => onChange({ ...filters, trackedOnly: false, featuredOnly: false })}
-              className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                !filters.trackedOnly && !filters.featuredOnly
-                  ? isLight
-                    ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                    : 'bg-[#222227] text-[#EDEDE9] shadow-sm'
-                  : isLight
-                  ? 'text-slate-600 hover:text-slate-900'
-                  : 'text-[#94949B] hover:text-[#EDEDE9]'
-              }`}
-            >
-              All Deals ({totalDealsCount})
-            </button>
-
-            {/* Featured Only Tab */}
-            <button
-              type="button"
-              id="filter-tab-featured"
-              onClick={toggleFeaturedFilter}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                filters.featuredOnly
-                  ? isLight
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-semibold'
-                    : 'bg-[rgba(201,162,77,0.18)] text-[#C9A24D] border border-[rgba(201,162,77,0.4)] shadow-sm'
-                  : isLight
-                  ? 'text-slate-600 hover:text-slate-900'
-                  : 'text-[#94949B] hover:text-[#EDEDE9]'
-              }`}
-            >
-              <Sparkles
-                className={`w-3 h-3 ${
-                  filters.featuredOnly
-                    ? isLight
-                      ? 'text-[#8C6515]'
-                      : 'text-[#C9A24D]'
-                    : isLight
-                    ? 'text-slate-500'
-                    : 'text-[#94949B]'
-                }`}
-              />
-              <span>Featured ({featuredCount})</span>
-            </button>
-
-            {/* Tracked Opportunities Tab */}
-            <button
-              type="button"
-              id="filter-tab-tracked-startups"
-              onClick={toggleTrackedFilter}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                filters.trackedOnly
-                  ? isLight
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-semibold'
-                    : 'bg-[rgba(201,162,77,0.18)] text-[#C9A24D] border border-[rgba(201,162,77,0.4)] shadow-sm'
-                  : isLight
-                  ? 'text-slate-600 hover:text-slate-900'
-                  : 'text-[#94949B] hover:text-[#EDEDE9]'
-              }`}
-            >
-              <Bookmark
-                className={`w-3 h-3 ${
-                  filters.trackedOnly
-                    ? isLight
-                      ? 'text-[#8C6515] fill-[#8C6515]'
-                      : 'text-[#C9A24D] fill-[#C9A24D]'
-                    : isLight
-                    ? 'text-slate-500'
-                    : 'text-[#94949B]'
-                }`}
-              />
-              <span>Tracked Watchlist ({trackedCount})</span>
-            </button>
-          </div>
-
-          {/* Acquisition quick filter badge */}
-          <button
-            type="button"
-            id="filter-quick-acquisition"
-            onClick={() =>
-              onChange({
-                ...filters,
-                investmentType: filters.investmentType === 'Acquisition' ? 'all' : 'Acquisition',
-              })
-            }
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl font-medium transition-all cursor-pointer border ${
-              filters.investmentType === 'Acquisition'
-                ? isLight
-                  ? 'bg-amber-200/80 text-amber-950 border-amber-400 font-semibold shadow-xs'
-                  : 'bg-[rgba(201,162,77,0.25)] text-[#C9A24D] border-[#C9A24D]'
-                : isLight
-                ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                : 'bg-[#151518] hover:bg-[#1C1C20] text-[#94949B] border-[rgba(255,255,255,0.08)]'
-            }`}
-            title="Filter solely for M&A / Acquisition opportunities"
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                filters.investmentType === 'Acquisition' ? 'bg-[#C9A24D]' : isLight ? 'bg-slate-400' : 'bg-slate-600'
-              }`}
-            />
-            <span>Investment Type: Acquisition</span>
-            {filters.investmentType === 'Acquisition' && <X className="w-3 h-3 ml-0.5" />}
-          </button>
-        </div>
-      )}
-
-      {/* Primary Filter controls grid: Search + Investment Type + Jurisdiction + Sector */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-center">
-        {/* Search input */}
-        <div className="relative">
+    <div className="mb-6 space-y-3">
+      {/* Search Bar + Tracked Toggle */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        {/* Search Input */}
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
-            id="filter-search"
             type="text"
+            placeholder="Search opportunities by title, reference, sector cluster, business model..."
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
-            placeholder="Search opportunity, sector, teaser..."
-            className={`w-full text-xs rounded-xl pl-8 pr-7 py-2.5 outline-none transition-colors border ${
+            className={`w-full pl-10 pr-9 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-[#C9A24D] transition-colors ${
               isLight
-                ? 'bg-white border-slate-200 focus:border-slate-400 text-slate-900 placeholder-slate-400 shadow-xs'
-                : 'bg-[#151518] border-[rgba(255,255,255,0.09)] focus:border-[rgba(255,255,255,0.28)] text-[#EDEDE9] placeholder-[#5F5F65]'
-            }`}
-          />
-          <Search
-            className={`w-3.5 h-3.5 absolute left-2.5 top-3 pointer-events-none ${
-              isLight ? 'text-slate-400' : 'text-[#5F5F65]'
+                ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                : 'bg-[#151518] border-white/10 text-white placeholder:text-stone-500 shadow-md shadow-black/30'
             }`}
           />
           {filters.search && (
             <button
               type="button"
               onClick={() => onChange({ ...filters, search: '' })}
-              className={`absolute right-2.5 top-2.5 cursor-pointer ${
-                isLight ? 'text-slate-400 hover:text-slate-700' : 'text-[#5F5F65] hover:text-[#EDEDE9]'
-              }`}
-              title="Clear search query"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Investment Type dropdown (with Acquisition highlighted) */}
-        <div>
-          <select
-            id="filter-investment-type"
-            value={filters.investmentType || 'all'}
-            onChange={(e) => onChange({ ...filters, investmentType: e.target.value })}
-            className={`w-full text-xs rounded-xl px-3 py-2.5 outline-none transition-colors cursor-pointer appearance-none border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-900 shadow-xs'
-                : 'bg-[#151518] border-[rgba(255,255,255,0.09)] text-[#EDEDE9]'
-            } bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394949B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:14px_14px] bg-[right_10px_center] bg-no-repeat pr-8`}
-          >
-            <option value="all" className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}>
-              All Investment Types
-            </option>
-            {INVESTMENT_TYPES.map((t) => (
-              <option
-                key={t.value}
-                value={t.value}
-                className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}
-              >
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Jurisdiction dropdown */}
-        <div>
-          <select
-            id="filter-jurisdiction"
-            value={filters.jurisdiction}
-            onChange={(e) => onChange({ ...filters, jurisdiction: e.target.value })}
-            className={`w-full text-xs rounded-xl px-3 py-2.5 outline-none transition-colors cursor-pointer appearance-none border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-900 shadow-xs'
-                : 'bg-[#151518] border-[rgba(255,255,255,0.09)] text-[#EDEDE9]'
-            } bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394949B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:14px_14px] bg-[right_10px_center] bg-no-repeat pr-8`}
-          >
-            <option value="all" className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}>
-              All Jurisdictions
-            </option>
-            {JURISDICTIONS.map((j) => (
-              <option
-                key={j}
-                value={j}
-                className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}
-              >
-                {j}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Sector dropdown */}
-        <div>
-          <select
-            id="filter-sector"
-            value={filters.sector}
-            onChange={(e) => onChange({ ...filters, sector: e.target.value })}
-            className={`w-full text-xs rounded-xl px-3 py-2.5 outline-none transition-colors cursor-pointer appearance-none border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-900 shadow-xs'
-                : 'bg-[#151518] border-[rgba(255,255,255,0.09)] text-[#EDEDE9]'
-            } bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394949B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:14px_14px] bg-[right_10px_center] bg-no-repeat pr-8`}
-          >
-            <option value="all" className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}>
-              All Sectors
-            </option>
-            {SECTORS.map((s) => (
-              <option
-                key={s}
-                value={s}
-                className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}
-              >
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Tracked Filter Pill */}
+        <button
+          type="button"
+          onClick={toggleTrackedFilter}
+          className={`px-3.5 py-2.5 rounded-xl text-xs font-medium border flex items-center justify-center gap-2 transition-colors shrink-0 ${
+            filters.trackedOnly
+              ? 'bg-[#C9A24D] text-black border-[#C9A24D] font-semibold shadow-sm'
+              : isLight
+              ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              : 'bg-[#151518] text-stone-300 border-white/10 hover:border-white/20'
+          }`}
+        >
+          <Bookmark className={`w-3.5 h-3.5 ${filters.trackedOnly ? 'fill-black' : ''}`} />
+          <span>Tracked ({trackedCount})</span>
+        </button>
       </div>
 
-      {/* Secondary Filter row: Ticket Range + Sort by + Active Filter Badges */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 items-center">
-        {/* Ticket Size Range dropdown */}
-        <div>
+      {/* Filter Dropdowns row */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        {/* Stage Filter */}
+        <select
+          value={filters.companyStage}
+          onChange={(e) => onChange({ ...filters, companyStage: e.target.value })}
+          className={`px-3 py-1.5 rounded-lg text-xs border focus:outline-none transition-colors ${
+            filters.companyStage !== 'all'
+              ? 'bg-[#C9A24D]/15 border-[#C9A24D]/50 text-[#C9A24D]'
+              : isLight
+              ? 'bg-white border-slate-200 text-slate-700'
+              : 'bg-[#151518] border-white/10 text-stone-300'
+          }`}
+        >
+          <option value="all">All Stages</option>
+          {availableStages.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        {/* Asset Class Filter */}
+        <select
+          value={filters.assetClass}
+          onChange={(e) => onChange({ ...filters, assetClass: e.target.value })}
+          className={`px-3 py-1.5 rounded-lg text-xs border focus:outline-none transition-colors ${
+            filters.assetClass !== 'all'
+              ? 'bg-[#C9A24D]/15 border-[#C9A24D]/50 text-[#C9A24D]'
+              : isLight
+              ? 'bg-white border-slate-200 text-slate-700'
+              : 'bg-[#151518] border-white/10 text-stone-300'
+          }`}
+        >
+          <option value="all">All Asset Classes</option>
+          {availableAssetClasses.map((ac) => (
+            <option key={ac} value={ac}>
+              {ac}
+            </option>
+          ))}
+        </select>
+
+        {/* Geography Filter */}
+        {availableGeographies.length > 0 && (
           <select
-            id="filter-ticket-range"
-            value={filters.ticketRange || 'all'}
-            onChange={(e) => onChange({ ...filters, ticketRange: e.target.value })}
-            className={`w-full text-xs rounded-xl px-3 py-2.5 outline-none transition-colors cursor-pointer appearance-none border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-900 shadow-xs'
-                : 'bg-[#151518] border-[rgba(255,255,255,0.09)] text-[#EDEDE9]'
-            } bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394949B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:14px_14px] bg-[right_10px_center] bg-no-repeat pr-8`}
+            value={filters.geography}
+            onChange={(e) => onChange({ ...filters, geography: e.target.value })}
+            className={`px-3 py-1.5 rounded-lg text-xs border focus:outline-none transition-colors ${
+              filters.geography !== 'all'
+                ? 'bg-[#C9A24D]/15 border-[#C9A24D]/50 text-[#C9A24D]'
+                : isLight
+                ? 'bg-white border-slate-200 text-slate-700'
+                : 'bg-[#151518] border-white/10 text-stone-300'
+            }`}
           >
-            {TICKET_RANGES.map((r) => (
-              <option
-                key={r.value}
-                value={r.value}
-                className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}
-              >
-                {r.label}
+            <option value="all">All Regions</option>
+            {availableGeographies.map((g) => (
+              <option key={g} value={g}>
+                {g}
               </option>
             ))}
           </select>
-        </div>
+        )}
 
-        {/* Sort By dropdown */}
-        <div>
-          <select
-            id="filter-sort-by"
-            value={filters.sortBy || 'default'}
-            onChange={(e) => onChange({ ...filters, sortBy: e.target.value })}
-            className={`w-full text-xs rounded-xl px-3 py-2.5 outline-none transition-colors cursor-pointer appearance-none border ${
-              isLight
-                ? 'bg-white border-slate-200 text-slate-900 shadow-xs'
-                : 'bg-[#151518] border-[rgba(255,255,255,0.09)] text-[#EDEDE9]'
-            } bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394949B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:14px_14px] bg-[right_10px_center] bg-no-repeat pr-8`}
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option
-                key={o.value}
-                value={o.value}
-                className={isLight ? 'bg-white text-slate-900' : 'bg-[#1B1B1F] text-[#EDEDE9]'}
-              >
-                Sort: {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Active Filters Summary or Reset Shortcut */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 text-xs">
-          {hasActiveFilters && (
-            <button
-              type="button"
-              id="btn-clear-filters-secondary"
-              onClick={handleClear}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all cursor-pointer border ${
-                isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                  : 'bg-[#18181C] hover:bg-[#222227] text-[#94949B] hover:text-[#EDEDE9] border-[rgba(255,255,255,0.08)]'
-              }`}
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset all criteria</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Result count & clear action row */}
-      <div
-        className={`flex items-center justify-between text-xs pt-0.5 ${
-          isLight ? 'text-slate-600' : 'text-[#94949B]'
-        }`}
-      >
-        <div id="filter-result-count" className="font-normal">
-          Displaying{' '}
-          <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-[#EDEDE9]'}`}>
-            {resultCount}
-          </span>{' '}
-          {resultCount === 1 ? 'vetted opportunity' : 'vetted opportunities'}
-          {filters.investmentType && filters.investmentType !== 'all' && (
-            <span
-              className={`ml-1.5 font-medium px-2 py-0.5 rounded-full text-[11px] ${
-                isLight ? 'bg-amber-100 text-amber-900' : 'bg-[rgba(201,162,77,0.18)] text-[#C9A24D]'
-              }`}
-            >
-              &bull; {filters.investmentType}
-            </span>
-          )}
-          {filters.trackedOnly && (
-            <span className={`ml-1.5 font-normal ${isLight ? 'text-amber-800' : 'text-[#C9A24D]'}`}>
-              (tracked subset)
-            </span>
-          )}
-          {filters.featuredOnly && (
-            <span className={`ml-1.5 font-normal ${isLight ? 'text-amber-800' : 'text-[#C9A24D]'}`}>
-              (featured subset)
-            </span>
-          )}
-        </div>
-
+        {/* Clear active filters */}
         {hasActiveFilters && (
           <button
             type="button"
-            id="btn-clear-filters"
             onClick={handleClear}
-            className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer focus:outline-none ${
-              isLight ? 'text-slate-500 hover:text-slate-900' : 'text-[#94949B] hover:text-[#EDEDE9]'
-            }`}
+            className="px-2.5 py-1.5 rounded-lg text-xs text-stone-400 hover:text-white hover:bg-white/5 flex items-center gap-1 transition-colors ml-auto sm:ml-0"
           >
             <RotateCcw className="w-3 h-3" />
             <span>Reset filters</span>
           </button>
         )}
+
+        <div className="ml-auto text-[11px] text-stone-400">
+          Showing <span className="text-white font-medium">{resultCount}</span> of{' '}
+          <span className="text-stone-300 font-medium">{totalDealsCount}</span> opportunities
+        </div>
       </div>
     </div>
   );

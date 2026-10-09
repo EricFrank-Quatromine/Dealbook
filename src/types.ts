@@ -1,126 +1,31 @@
-export type Role = 'broker' | 'investor' | 'admin';
+import { DealbookDeal, DealbookUser, Role } from './services/dealbookApi';
+
+export type { Role, DealbookUser, DealbookDeal };
+export type AuthUser = DealbookUser;
+export type Deal = DealbookDeal;
 
 export type Theme = 'dark' | 'light';
 
-export type Jurisdiction = 'Switzerland' | 'Luxembourg';
-
-export type Sector =
-  | 'Digital Infrastructure & AI'
-  | 'Sustainability & Transition'
-  | 'Healthcare Technology';
-
-export type OpportunityType =
-  | 'Early Stage / VC'
-  | 'Growth / SME'
-  | 'Large / Institutional'
-  | 'Real Assets / Infrastructure'
-  | 'Emerging Managers';
-
-export type InvestmentType =
-  | 'Acquisition'
-  | 'Growth Equity'
-  | 'Venture Capital'
-  | 'Real Asset / Project'
-  | 'Structured / Mezzanine Debt'
-  | 'Fund Commitment';
-
-export interface DealTeamMember {
-  name: string;
-  role: string;
-  bio: string;
-  previousExperience?: string;
-}
-
-export interface DealFinancials {
-  valuation?: string;
-  arrOrRevenue?: string;
-  growthRate?: string;
-  burnOrRunway?: string;
-  pastFunding?: string;
-  grossMargin?: string;
-}
-
-export interface DealAsk {
-  roundSize: string;
-  allocationAvailable: string;
-  minTicket: string;
-  useOfProceeds: string;
-  targetClose?: string;
-}
-
-export interface DealLead {
-  name: string;
-  title: string;
-  email: string;
-  phone?: string;
-}
-
-export type ResponsiblePerson = DealLead;
-
-export interface DealDocument {
-  name: string;
-  size?: string;
-  type?: string;
-  uploadedAt?: string;
-}
-
-export interface Deal {
-  id: string;
-  name: string;
-  jurisdiction: Jurisdiction;
-  sector: Sector;
-  opportunityType: OpportunityType;
-  investmentType?: InvestmentType;
-  stage: string;
-  ticket: string;
-  priority: string; // Internal only (visible to Partner/Admin)
-  status: 'In Review' | 'Published';
-
-  // Visibility controls (configured by Admin)
-  visibleToInvestor: boolean;
-  visibleToPartner: boolean;
-  featuredForInvestor: boolean;
-
-  // Person responsible for the deal (seen & edited by Admin)
-  responsiblePerson: DealLead;
-
-  // Deep dive aspects
-  teaser: string;
-  summary: string;
-  team: DealTeamMember[];
-  financials: DealFinancials;
-  ask: DealAsk;
-  sectorFocus: string;
-  industryFocus: string;
-  targetMarket?: string;
-  stageMilestones?: string;
-
-  // Files / Diligence documents
-  docs: string[];
-  docFiles?: DealDocument[];
+export interface AdminUserData extends DealbookUser {
+  status: 'pending' | 'active' | 'disabled' | string;
+  createdAt: string;
+  lastLoginAt: string | null;
 }
 
 export interface FilterState {
   search: string;
-  jurisdiction: string;
-  sector: string;
-  opportunityType: string;
-  investmentType: string;
-  ticketRange: string;
-  stage: string;
+  companyStage: string;
+  assetClass: string;
+  cluster: string;
+  geography: string;
+  businessModel: string;
   sortBy: string;
-  featuredOnly?: boolean;
   trackedOnly?: boolean;
 }
 
-export interface AuthUser {
-  email: string;
-  role: Role;
-}
-
 export interface CallBookingRequest {
-  dealId?: string;
-  dealName?: string;
+  dealRef: string;
+  dealTitle?: string;
   name: string;
   email: string;
   institution?: string;
